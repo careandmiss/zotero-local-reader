@@ -16,6 +16,10 @@ window.__ModuleLoader__.load({
         'status.missing': '未找到 Zotero 数据库',
         'status.busy': 'Zotero 正在同步或索引',
         'status.error': '无法读取 Zotero 数据库',
+        'collection.heading': '文库目录',
+        'collection.countSuffix': '篇',
+        'collection.empty': '本地文库中还没有集合。',
+        'collection.next': '条目搜索即将加入。',
         'action.retry': '重新检查',
         'empty.hint': '确认 Zotero 数据目录，或在插件设置中配置数据目录。',
         'busy.hint': '等待片刻后重试；读取器不会修改数据库。',
@@ -30,6 +34,10 @@ window.__ModuleLoader__.load({
         'status.missing': 'Zotero database not found',
         'status.busy': 'Zotero is syncing or indexing',
         'status.error': 'Could not read the Zotero database',
+        'collection.heading': 'Collections',
+        'collection.countSuffix': 'items',
+        'collection.empty': 'There are no collections in this local library yet.',
+        'collection.next': 'Item search is coming next.',
         'action.retry': 'Check again',
         'empty.hint': 'Confirm the Zotero data directory or set it in plugin settings.',
         'busy.hint': 'Wait briefly and retry. The reader never writes to the database.',
@@ -47,16 +55,32 @@ window.__ModuleLoader__.load({
 
     function Panel({ t }) {
       const [state, setState] = useState({ kind: 'checking', message: '' })
+      const [collections, setCollections] = useState([])
       const [checking, setChecking] = useState(false)
       const refresh = useCallback(async (signal) => {
         setChecking(true)
         try {
           const response = await fetch(`${API}/health`, { cache: 'no-store', signal })
           const result = await response.json()
-          if (result.ok) setState({ kind: 'ready', message: '' })
-          else setState({ kind: result.error?.code === 'database_busy' ? 'busy' : result.error?.code === 'database_missing' ? 'missing' : 'error', message: result.error?.message ?? '' })
+          if (result.ok) {
+            const collectionResponse = await fetch(`${API}/collections`, { cache: 'no-store', signal })
+            const collectionResult = await collectionResponse.json()
+            if (!collectionResult.ok) {
+              const error = new Error(collectionResult.error?.message ?? 'Collections are unavailable.')
+              error.code = collectionResult.error?.code ?? 'collections_unavailable'
+              throw error
+            }
+            setCollections(collectionResult.data.collections ?? [])
+            setState({ kind: 'ready', message: '' })
+          } else {
+            setCollections([])
+            setState({ kind: result.error?.code === 'database_busy' ? 'busy' : result.error?.code === 'database_missing' ? 'missing' : 'error', message: result.error?.message ?? '' })
+          }
         } catch (error) {
-          if (error?.name !== 'AbortError') setState({ kind: 'error', message: '' })
+          if (error?.name !== 'AbortError') {
+            setCollections([])
+            setState({ kind: error?.code === 'database_busy' ? 'busy' : 'error', message: '' })
+          }
         } finally {
           if (!signal?.aborted) setChecking(false)
         }
@@ -118,7 +142,17 @@ window.__ModuleLoader__.load({
           heading,
         ),
         hint ? h('div', { style: { padding: 12, borderRadius: 9, border: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.55 } }, hint) : null,
-        state.kind === 'ready' ? h('div', { style: { marginTop: 2, border: '1px dashed var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: 10, padding: '22px 14px', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, textAlign: 'center', lineHeight: 1.6 } }, 'SQLite reader is ready. Library navigation is the next build step.') : null,
+        state.kind === 'ready' ? h('div', { style: { minHeight: 0, display: 'flex', flexDirection: 'column', gap: 8 } },
+          h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 } },
+            h('h2', { style: { margin: 0, fontSize: 12, letterSpacing: '.02em', fontWeight: 650 } }, t('collection.heading')),
+            h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary, GrayText)' } }, String(collections.length)),
+          ),
+          collections.length ? h('ul', { style: { listStyle: 'none', margin: 0, padding: 0, overflowY: 'auto', minHeight: 0 } }, collections.map((collection) => h('li', { key: collection.key, style: { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 8px', borderTop: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.25))' } },
+            h('span', { style: { minWidth: 0, color: 'var(--dsw-alias-label-primary, CanvasText)', fontSize: 12, lineHeight: 1.45, overflowWrap: 'anywhere' }, title: collection.path }, collection.path),
+            h('span', { style: { flex: '0 0 auto', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11 } }, `${collection.itemCount} ${t('collection.countSuffix')}`),
+          ))) : h('div', { style: { padding: '14px 10px', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5 } }, t('collection.empty')),
+          h('div', { style: { padding: '9px 10px', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(128,128,128,.1))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 11, lineHeight: 1.45 } }, t('collection.next')),
+        ) : null,
         h('footer', { style: { marginTop: 'auto', paddingTop: 10, borderTop: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11 } }, 'Zotero desktop can remain closed. No cloud API or credentials are used.'),
       )
     }

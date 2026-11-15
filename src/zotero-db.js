@@ -76,7 +76,7 @@ function checkSchema(db) {
   }
 }
 
-function withDatabase(config, operation) {
+export function withReadOnlyDatabase(config, operation) {
   const { db, location } = openDatabase(config)
   try {
     checkSchema(db)
@@ -95,7 +95,7 @@ function withDatabase(config, operation) {
 
 export function getLibraryHealth(config = {}) {
   try {
-    return withDatabase(config, (_db, location) => ({ state: 'ready', source: location.source }))
+    return withReadOnlyDatabase(config, (_db, location) => ({ state: 'ready', source: location.source }))
   } catch (error) {
     if (error instanceof ZoteroReadError) {
       const state = error.code === 'database_missing' ? 'missing' : error.code === 'database_busy' ? 'busy' : 'error'
@@ -106,5 +106,41 @@ export function getLibraryHealth(config = {}) {
 }
 
 export function assertDatabaseReadable(config = {}) {
-  return withDatabase(config, (_db, location) => ({ state: 'ready', source: location.source }))
+  return withReadOnlyDatabase(config, (_db, location) => ({ state: 'ready', source: location.source }))
+}
+
+export function listCollections(config = {}) {
+  return withReadOnlyDatabase(config, (db) => {
+    const rows = db.prepare(`
+      SELECT c.collectionID, c.key, c.collectionName, c.parentCollectionID,
+             COALESCE(counts.itemCount, 0) AS itemCount
+      FROM collections c
+      LEFT JOIN (
+        SELECT ci.collectionID, COUNT(i.itemID) AS itemCount
+        FROM collectionItems ci
+        JOIN items i ON i.itemID = ci.itemID
+        WHERE i.itemID NOT IN (SELECT itemID FROM deletedItems)
+        GROUP BY ci.collectionID
+      ) counts ON counts.collectionID = c.collectionID
+      ORDER BY c.collectionName COLLATE NOCASE
+    `).all()
+    const byId = new Map(rows.map((row) => [row.collectionID, row]))
+    return rows.map((row) => {
+      const names = [row.collectionName]
+      const seen = new Set([row.collectionID])
+      let parentId = row.parentCollectionID
+      while (parentId && byId.has(parentId) && !seen.has(parentId)) {
+        seen.add(parentId)
+        const parent = byId.get(parentId)
+        names.push(parent.collectionName)
+        parentId = parent.parentCollectionID
+      }
+      return {
+        key: row.key,
+        name: row.collectionName,
+        path: names.reverse().join(' / '),
+        itemCount: row.itemCount,
+      }
+    })
+  })
 }

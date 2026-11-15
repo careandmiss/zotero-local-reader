@@ -4,7 +4,7 @@ A DSH right-sidebar plugin for browsing the local Zotero library and reading loc
 
 ## Status
 
-F0 is being built: plugin metadata, DSH sidebar registration, and a safe local database health endpoint. Collection browsing and PDF reading follow in the approved F1–F4 plan. See [`plan.md`](plan.md), [`spec.md`](spec.md), and [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
+F0 and F1 are implemented: the bundle registers a DSH right-sidebar tab, reports local database status, and reads a synthetic/tested local collection tree through a read-only SQLite connection. F2 item search/details and F3 PDF reading remain in the approved plan. See [`plan.md`](plan.md), [`spec.md`](spec.md), and [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
 
 ## Privacy
 

@@ -2,12 +2,12 @@
 
 ## Current stage
 
-Plan/Design approved by the user on 2026-11-15. Implementation is authorized; F0 is starting. Profile installation remains a separate deployment step.
+Plan/Design approved by the user on 2026-11-15. F0 and F1 are implemented and tested; F2 is next. Profile installation remains a separate deployment step.
 
 ## F0–F4 ladder
 
 - F0 Host `/health` + DSH right-sidebar tab — implemented; HTTP test (3/3), syntax and bundle checks pass. Runtime visual verification is pending installation.
-- F1 read-only SQLite + collections tree — not started.
+- F1 read-only SQLite + collections tree — implemented; synthetic DB/HTTP suite 8/8 passes; live profile verification pending.
 - F2 live item search/detail — not started.
 - F3 safe local PDF route + reader — not started.
 - F4 resilience, accessibility, review, install verification — not started.

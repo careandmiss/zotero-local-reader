@@ -1,4 +1,4 @@
-import { getLibraryHealth } from './zotero-db.js'
+import { getLibraryHealth, listCollections } from './zotero-db.js'
 
 export const API_PREFIX = '/dsh-zotero-local/api'
 
@@ -68,12 +68,23 @@ export function createHandler({ getConfig }) {
       return
     }
     const route = url.pathname.slice(API_PREFIX.length)
+    const config = getConfig()
+    if (route === '/collections') {
+      try {
+        sendJson(res, 200, { ok: true, data: { collections: listCollections(config) } })
+      } catch (error) {
+        const code = error?.code ?? 'database_unavailable'
+        const status = code === 'database_missing' ? 404 : code === 'database_busy' ? 503 : code === 'schema_unsupported' || code === 'database_invalid' ? 409 : 500
+        sendError(res, status, code, error?.code ? error.message : 'Could not read Zotero collections.')
+      }
+      return
+    }
     if (route !== '/health') {
       sendError(res, 404, 'not_found', 'Unknown endpoint.')
       return
     }
 
-    const data = getLibraryHealth(getConfig())
+    const data = getLibraryHealth(config)
     const status = data.state === 'ready' ? 200 : data.state === 'busy' ? 503 : data.state === 'missing' ? 404 : 409
     sendJson(res, status, data.state === 'ready'
       ? { ok: true, data }

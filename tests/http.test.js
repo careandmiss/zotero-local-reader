@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { createHandler } from '../src/http.js'
+import { makeLibrary } from './helpers/fixture.js'
 
 async function withServer(handler, run) {
   const server = createServer(handler)
@@ -25,6 +26,19 @@ test('health endpoint gives actionable missing-library state', async () => {
     assert.equal(response.status, 404)
     assert.equal(body.ok, false)
     assert.equal(body.error.code, 'database_missing')
+  })
+})
+
+test('collections endpoint returns only local collection metadata', async (t) => {
+  const library = makeLibrary(t)
+  const handler = createHandler({ getConfig: () => library.config })
+  await withServer(handler, async (base) => {
+    const response = await fetch(`${base}/dsh-zotero-local/api/collections`)
+    const body = await response.json()
+    assert.equal(response.status, 200)
+    assert.equal(body.ok, true)
+    assert.equal(body.data.collections.length, 2)
+    assert.equal(body.data.collections.some((item) => JSON.stringify(item).includes(library.dataDir)), false)
   })
 })
 
