@@ -225,4 +225,16 @@
 
 1. 已完成：用户展开右侧开始页「更多工具」，确认菜单只有「添加插件」「创建插件」，没有「Zotero 本地阅读器」卡。
 2. 若没有，用户在「内置插件 → 插件列表」提供 Client 同步错误或 Retry 结果，之后再确定代码/运行时修复。
-3. 本地卡、左侧入口及 PDF 原生侧栏/全屏均需在现有 GUI 验收；未验证前不得宣称交付完成。已有 27 项合成测试与语法/bundle 检查对应的代码未因本次设计说明而改变。
+3. 本地卡、左侧入口及 PDF 原生侧栏/全屏均需在现有 GUI 验收；未验证前不得宣称交付完成。
+
+## 已定位的 Client 启动失败与修复计划（2026-11-15）
+
+用户在「内置插件」页提供的 Client 同步错误为：`@local/zotero-local-reader: Error: slot "sidebar.right.tab.document" is already declared (by an entry in "sidebar.right.pane.tab" (a0))`。这说明 Client `apply()` 失败，故 `sidebar.panellist` launcher 和右栏 guide card 都没有注册；不是插件未启用或入口只在 More 中。
+
+根因在本插件 `client.js:1209-1219`：注册 `READER_TAB_ID` 的 `sidebar.right.pane.tab` 时，重复声明 child slot `sidebar.right.tab.document`。DSH `ui-sidebar-documentpreview` 已在其自身 text-preview pane entry 的 children 中声明同名 Session-scoped slot（`packages/client/ui-sidebar-documentpreview/src/client/index.ts:104-112`）；resource body 只需使用现成 child slot，不应再在本插件 parent entry 上声明一次。实施时删除本插件重复的 `children` 块，保留 `ReaderResourcePane` 通过 `renderSlot('sidebar.right.tab.document', ..., { entryKey: pdfBodyId })` 选择原生 PDF body 的逻辑。
+
+### 修复与验收
+
+1. 删除重复 child declaration；不改 Host route、安全策略或 PDF 数据流。
+2. 运行 `node --test tests/*.test.js`、四个 `node --check`、`node scripts/check-bundle.mjs` 和 `git diff --check`。
+3. 提交/推送后，请用户在「内置插件 → 插件列表」点 **重试本页面**，确认同步错误消失、右侧「Zotero 本地阅读器」卡或左侧 panel launcher 出现；随后验收本地文库、原生侧栏 PDF 与全屏。未获 GUI 反馈前不宣称完成。
