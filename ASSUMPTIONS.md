@@ -13,4 +13,4 @@
 | A7 | 首版使用 DSH 同源 Host PDF 路由和 Chromium 内嵌 PDF viewer | UX/Implementation | 已安装的 DSH Zotero 插件已有 PDF 侧栏阅读经验 | 若当前 Electron 不支持内嵌 PDF，F3 改为 PDF.js | 待验证 |
 | A8 | 不依赖用户当前安装的 `dsh-plugin-zotero` 作为运行时模块，也不改其文件 | Maintainability | 该包在 profile node_modules，只有编译产物且依赖本机 Zotero API | 新 bundle 使用独立 id/route，避免同插件 API 竞态 | 确定 |
 | A9 | 不读取/提交用户论文内容，不使用真实文献作为测试断言 | Privacy | 本地文库是私人数据 | 使用临时合成 SQLite/PDF fixture 验证 | 确定 |
-| A10 | “登录”不再作为 Zotero Web API 登录要求；如果用户所指是 DSH 的登录门槛，插件继承当前 DSH 会话 | Semantic | 用户最新澄清要求本地库实时读取 | 本地数据库模式本身无法验证 Zotero 云端身份 | 等待计划审核时确认 |
+| A10 | 本地 SQLite 模式不要求单独登录 Zotero；继承当前 DSH 会话的访问控制 | Semantic | 用户最新澄清要求本地库实时读取 | 本地数据不走 Zotero Web API；若未来要跨设备访问，另行设计云端认证模式 | 已由用户目标确定 |

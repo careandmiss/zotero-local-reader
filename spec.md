@@ -2,7 +2,7 @@
 
 - Derived from: `intent/intent.md`（用户最新澄清）
 - Author: DSH agent；待用户审核
-- Status: Draft — 等待用户批准后进入代码阶段
+- Status: Approved by user on 2026-11-15
 - Date: 2026-11-15
 
 ## Requirements

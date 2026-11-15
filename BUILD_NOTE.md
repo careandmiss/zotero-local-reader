@@ -2,7 +2,7 @@
 
 ## Current stage
 
-Plan/Design complete as draft. **No implementation code has been written.** Awaiting user approval of `spec.md` and `plan.md` before Build, per the project gate.
+Plan/Design approved by the user on 2026-11-15. Implementation is authorized; F0 is starting. Profile installation remains a separate deployment step.
 
 ## F0–F4 ladder
 

@@ -14,22 +14,22 @@ nodes:
     stage: plan
     artifact: intent/intent.md
     gate: product_owner_accept
-    status: not_started
+    status: accepted
   spec:
     stage: design
     artifact: spec.md
     gate: product_owner_approve
-    status: not_started
+    status: approved
   plan:
     stage: build
     artifact: plan.md
     gate: engineer_approve
-    status: not_started
+    status: approved
   implementation:
     stage: build
     artifact: code + tests
     gate: code_owner_approve
-    status: not_started
+    status: in_progress
   release:
     stage: deploy
     artifact: authorized release

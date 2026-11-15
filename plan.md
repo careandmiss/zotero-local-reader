@@ -1,7 +1,7 @@
 # DSH 本地 Zotero 侧栏阅读器 — Build Plan
 
 - Derived from: `intent/intent.md` + `spec.md`
-- Status: Draft — **等待用户批准；批准前不写实现代码、不安装到当前 profile**
+- Status: Approved by user on 2026-11-15 — code phase authorized; profile installation remains a separate deployment gate
 - Date: 2026-11-15
 
 ## 本计划的结果定义
