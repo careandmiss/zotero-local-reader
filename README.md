@@ -17,10 +17,10 @@
 
 ## 实现状态
 
-本地数据库读取、文献浏览与 PDF 路由功能已实现；合成测试、语法检查和 bundle 检查均通过。插件已安装到本地 DSH desktop profile，Plugin Manager 显示目标条目已启用且 active。未打开阅读器访问真实文库；实际文库读取、侧栏渲染和 Chromium 原生 PDF 显示仍未验证。
+本地数据库读取、文献浏览与 PDF 路由功能已实现；23 项合成测试、语法检查和 bundle 检查均通过，合成库 health/search 检查也通过。插件已安装到本地 DSH desktop profile 且 active。用户截图确认侧栏和 PDF 查看器可显示，并报告搜索/详情/PDF 操作通过；但另一次使用当前文库设置时出现“无法读取 Zotero 数据库”。根因尚未定位，真实库路径/schema 兼容性仍待验证；自动化检查未读取真实库内容。
 
 ## English
 
 This DSH Host + Client bundle provides a right-sidebar reader for a local Zotero library. Add this repository through **Plugins > Add plugin**. Set `dataDir` in plugin settings to the folder containing `zotero.sqlite` when standard directory discovery does not find the library. Open **Zotero local library** in the right sidebar to search by title, author, or abstract, inspect item details, and read Zotero-managed local PDFs.
 
-The plugin reads SQLite in read-only mode, refreshes the panel every 15 seconds, and does not require Zotero Desktop to remain open. It supports PDFs below Zotero `storage/` only; linked external files, PDF full-text search, record editing, Zotero Web API, and cloud services are out of scope. The bundle is installed and active in the local DSH desktop profile. Tests use temporary synthetic fixtures only; the reader panel, real-library access, and native-viewer rendering have not been exercised.
+The plugin reads SQLite in read-only mode, refreshes the panel every 15 seconds, and does not require Zotero Desktop to remain open. It supports PDFs below Zotero `storage/` only; linked external files, PDF full-text search, record editing, Zotero Web API, and cloud services are out of scope. The bundle is installed and active in the local DSH desktop profile. All 23 synthetic tests, syntax checks, bundle checks, and a synthetic health/search smoke test pass. User screenshots confirm the sidebar and embedded PDF viewer render, and the user reports search/detail/PDF use succeeded; however, another check with the user's current library setting shows an unreadable-database error. Root cause and real-library schema/path compatibility remain unresolved; automated checks do not read the real library.

@@ -60,7 +60,7 @@
 
 1. 完整 loading/empty/error/retry 状态，限制轮询并在组件卸载时清除计时器。
 2. zh/en locale、主题 token、键盘/ARIA 基础支持、原创 icon 与 README fallback；不声明可选 detail 图片页。
-3. 运行全量 test、语法与 bundle 静态检查；profile 安装/active 状态已在单独授权后验证。实际 Zotero schema 与 Chromium PDF 渲染仍未验证；我们未手动打开阅读器 tab 或从验证脚本发出访问真实文库的认证请求，当前页面挂载状态无法检查。
+3. 运行全量 test、语法与 bundle 静态检查；profile 安装/active 状态已在单独授权后验证。用户截图确认侧栏与嵌入式 PDF 查看器渲染，用户报告搜索/详情/PDF 操作通过；但后续使用当前文库设置出现无法读取数据库状态，根因未定位。Agent 未直接查询真实数据库；真实 schema/路径兼容仍待验证。当前会话无已认证浏览器控制，不尝试绕过认证。
 4. 委托独立 UI/UX、包元数据与安全 review；修复有证据的问题后再报告。
 5. 若安装过程报告需批准的构建脚本，则不批准、不运行该脚本；改为零构建脚本或报告阻塞。
 
