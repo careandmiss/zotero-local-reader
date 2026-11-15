@@ -21,6 +21,7 @@ The DSH Host plugin reads Zotero SQLite read-only and streams only Zotero-manage
 - A registered `sidebar.panellist` entry normally appears in the sidebar. DSH's left-sidebar “More” menu is conditional on `sidebar.panellist.actions`; only manually unpinned entries are moved there. Do not tell users that every plugin entry is under “More” by default.
 - This bundle also registers a right-sidebar start-page guide card through `sidebarRightTabs.register`. It normally appears among the rightbar guide cards; only a manually unpinned card moves under the rightbar **More tools** menu. This rightbar card is distinct from the left-sidebar panel launcher.
 - If a bundle is enabled but its Client panel is missing, guide the user to the sidebar-bottom **Settings > Built-in plugins > Plugin list** (`设置 > 内置插件 > 插件列表`): DSH exposes page-local Client synchronization failures and retry there. Do not toggle or reinstall the Host bundle based only on a missing Client launcher.
+- If the Client sync error says `sidebar.right.tab.document` is already declared, the `ui-sidebar-documentpreview` parent entry already declares that child slot. Do not redeclare it on another `sidebar.right.pane.tab` registration; render/inject an occupant through the existing child slot.
 
 ## Security
 

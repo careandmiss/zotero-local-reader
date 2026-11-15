@@ -1209,13 +1209,6 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
           name: 'sidebar.right.pane.tab',
           key: READER_TAB_ID,
-          children: {
-            'sidebar.right.tab.document': {
-              kind: 'keyed',
-              scope: 'session',
-              inject: { hooks: { tabInfo: (_standard, useTabInfo) => useTabInfo } },
-            },
-          },
         }, ResourceBody))
         ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
           name: 'sidebar.right.pane.tab.title',

@@ -235,6 +235,6 @@
 
 ### 修复与验收
 
-1. 删除重复 child declaration；不改 Host route、安全策略或 PDF 数据流。
-2. 运行 `node --test tests/*.test.js`、四个 `node --check`、`node scripts/check-bundle.mjs` 和 `git diff --check`。
+1. 先新增 `tests/client-slot-registration.test.js` 回归检查并确认旧实现失败，再删除重复 child declaration；不改 Host route、安全策略或 PDF 数据流。将此槽声明规则记入 `AGENTS.md`。
+2. 已验证：`node --test tests/*.test.js` 28/28 通过（含回归项；旧实现先失败，删除重复声明后通过）；`node --check` 四个入口均通过；bundle check 与 `git diff --check` 通过。
 3. 提交/推送后，请用户在「内置插件 → 插件列表」点 **重试本页面**，确认同步错误消失、右侧「Zotero 本地阅读器」卡或左侧 panel launcher 出现；随后验收本地文库、原生侧栏 PDF 与全屏。未获 GUI 反馈前不宣称完成。
