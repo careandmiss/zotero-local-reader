@@ -106,3 +106,12 @@ Approved by the user on 2026-11-15 after clarifying that the PDF must occupy the
 - The embedded Chromium PDF viewer is the only document surface; the plugin should close the DSH rightbar while entering immersive reading so it cannot reduce the page width. Returning to the library retains filters, pagination, sorting, and selection.
 - The right-sidebar metadata preview remains available as a separate entry. Its full-read action selects the main panel, closes the rightbar, and opens the same immersive PDF canvas.
 - Error/loading states may occupy the canvas when no readable PDF is available; the floating return action remains available. No new dependencies or real-library access are permitted.
+
+## Approved Reader Amendment — sidebar tab plus fullscreen
+
+Approved by the user on 2026-11-15 after providing screenshots and clarifying that the PDF must open in the side panel and also be viewable full-screen. This adds a side-reading mode while keeping the immersive main-panel reader above as an alternative.
+
+- The two-pane library remains in the main panel. Opening a paper from its list opens a per-item PDF resource tab in DSH's right sidebar and leaves the library/filter state visible behind it.
+- The side tab renders the same local, read-only PDF at the available panel size. The DSH rightbar's built-in `fullscreen` presentation expands that same tab to cover the window; do not close the rightbar automatically in side-reading mode.
+- The dedicated main-panel immersive reader remains available through the metadata preview's “Read PDF in main workspace” action; that route may close the rightbar to maximize the PDF canvas and keeps its floating return-to-library control.
+- The metadata quick-preview tab remains separate. Resource addresses contain the Zotero item key only, never an attachment path; PDF streaming continues through the existing key-based API and storage containment.

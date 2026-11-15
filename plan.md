@@ -194,15 +194,16 @@
 - 新 bundle 已在既有安装授权范围内应用到当前 DSH profile，`include:zotero-local-reader` 显示 enabled/active；仍需用户刷新/重启现有 GUI 并验收双栏布局、标签过滤、侧栏到全宽阅读及返回状态。agent 无认证浏览器控制，未声称视觉验收通过。
 - 所有测试仅用合成数据库/PDF；未读取真实 Zotero 数据。先前真实库读取错误仍未定位。
 
-## 后续批准修订：沉浸式整页 PDF — 2026-11-15
+## 后续批准修订：侧栏阅读与全屏 — 2026-11-15
 
-用户明确补充“需要整个页面展示 PDF 文档”，并批准沉浸式方案：PDF 占据 DSH 主面板的全部插件内容区；隐藏插件自身标题/状态栏、文献元数据、Info/PDF tabs 与 PDF 标题；只保留一个浮动“返回文库”按钮。DSH 自身全局导航仍由宿主显示。进入阅读时关闭右侧面板以最大化主面板；右侧栏仍保留元数据 quick preview，其全文入口跳转到同一沉浸阅读器。
+用户在补充截图后明确要求“可以侧边这样打开，同时也可以全屏看文件”。在已批准的沉浸式主面板阅读器基础上，增加 DSH 右侧栏 PDF resource tab 和宿主原生全屏呈现；侧读模式不得自动关闭 rightbar。
 
 ### 实施与验收
 
-1. 在 `client.js` 中让 readerMode 下不渲染插件 header、hint、tab 或 metadata；PDF iframe 铺满 main panel，返回按钮覆盖显示。
-2. 从主列表或右侧 preview 进入 reader 时调用 `ctx.layout.closeRightbar()`；保留列表筛选、排序、分页与选中状态，返回后恢复文库。
-3. 保留 loading/error/no-PDF 状态和返回操作；只读 DB、同源 PDF 路由、storage containment 与不添加依赖维持不变。
-4. 更新 UX 文档并复审；重跑 27 项合成测试、四项 syntax、bundle、diff 检查；提交/推送后由用户刷新/重启现有 DSH GUI验收整个主面板是否只显示 PDF。
+1. 保留 main-panel readerMode 的沉浸视图：隐藏插件 header/hint/metadata/tabs，PDF 铺满并保留浮动返回；仅在此模式关闭 rightbar。
+2. 新增按 item key 寻址的 DSH rightbar resource tab。主文库打开条目时调用 `ctx.sidebarRight.openResource()`，右侧栏显示对应 PDF，主文库和筛选状态留在背景；metadata quick preview 保持独立。
+3. 右栏 PDF 填满当前 panel，用户可用宿主原生 `push` / `fullscreen` 控件在侧读和全屏之间切换；侧读时不自动关闭 rightbar，resource URI 不含文件路径。
+4. 保留 loading/error/no-PDF、只读 DB、同源 GET、key-based attachment lookup、`storage/` containment 和零新依赖。
+5. 更新 UX 文档并复审；重跑 27 项合成测试、四项 syntax、bundle、diff 检查；提交/推送后由用户在现有 GUI 验收双栏文库、侧栏 PDF、宿主全屏同一 PDF、主面板沉浸阅读和返回状态。
 
-此修订已获用户确认；编码与运行时视觉验收仍待完成。
+此修订已获用户确认；侧栏 resource tab 的实现与 GUI 验收仍待完成。
