@@ -2,13 +2,13 @@
 
 ## Current stage
 
-Plan/Design approved by the user on 2026-11-15. F0 and F1 are implemented and tested; F2 is next. Profile installation remains a separate deployment step.
+Plan/Design approved by the user on 2026-11-15. F0–F2 are implemented and tested; F3 is next. Profile installation remains a separate deployment step.
 
 ## F0–F4 ladder
 
 - F0 Host `/health` + DSH right-sidebar tab — implemented; HTTP test (3/3), syntax and bundle checks pass. Runtime visual verification is pending installation.
 - F1 read-only SQLite + collections tree — implemented; synthetic DB/HTTP suite 8/8 passes; live profile verification pending.
-- F2 live item search/detail — not started.
+- F2 live item search/detail — implemented; 16/16 synthetic DB/HTTP tests pass; live profile verification pending.
 - F3 safe local PDF route + reader — not started.
 - F4 resilience, accessibility, review, install verification — not started.
 
@@ -19,6 +19,11 @@ Plan/Design approved by the user on 2026-11-15. F0 and F1 are implemented and te
 - Current DSH bundled Node is 24.21.0 and `node:sqlite` exposes `DatabaseSync`, so a separate Host plugin can query SQLite without a new native dependency.
 - DSH installed docs expose `webServer.register`, `sidebarRightTabs.register`, and `sidebar.right.pane.tab` slot usage from the installed Zotero plugin.
 
+## Remote and deployment boundary
+
+- `origin` is `https://github.com/careandmiss/zotero-local-reader.git`; the user explicitly authorized normal pushes on 2026-11-15. Push only tested commits to `main`; no force-push.
+- Profile installation remains separate and is not authorized by the Git push instruction.
+
 ## Verification boundary
 
-No real Zotero record or PDF has been opened. Tests will use synthetic temporary fixtures. Current GUI installation/visual validation has not been attempted.
+No real Zotero record or PDF has been opened. Tests use synthetic temporary fixtures. Current GUI installation/visual validation has not been attempted.

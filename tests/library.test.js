@@ -1,0 +1,78 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { DatabaseSync } from 'node:sqlite'
+import { getItemDetails, listItems, ZoteroReadError } from '../src/zotero-db.js'
+import { makeLibrary } from './helpers/fixture.js'
+
+test('list returns compact bibliographic rows with authors and local-PDF metadata', (t) => {
+  const library = makeLibrary(t)
+  const result = listItems(library.config, { limit: 10 })
+  assert.equal(result.total, 2)
+  assert.equal(result.items.length, 2)
+  assert.deepEqual(result.items[0], {
+    key: 'PAPER001',
+    title: 'Synthetic article title',
+    authors: ['Example Author'],
+    date: '2025',
+    itemType: 'journalArticle',
+    hasPdfAttachment: true,
+  })
+  assert.equal(Object.hasOwn(result.items[0], 'abstract'), false)
+  assert.equal(result.hasMore, false)
+})
+
+test('literal substring search covers title, authors, and abstract', (t) => {
+  const library = makeLibrary(t)
+  for (const query of ['Synthetic article title', 'Example', 'no real paper content']) {
+    const result = listItems(library.config, { query })
+    assert.deepEqual(result.items.map((item) => item.key), ['PAPER001'])
+  }
+  assert.equal(listItems(library.config, { query: '%' }).total, 0)
+  assert.equal(listItems(library.config, { query: "' OR 1=1 --" }).total, 0)
+})
+
+test('collection filtering, pagination, and page bounds behave consistently', (t) => {
+  const library = makeLibrary(t)
+  const first = listItems(library.config, { collectionKey: 'COLL0002', limit: 1, offset: 0 })
+  assert.equal(first.total, 1)
+  assert.equal(first.items[0].key, 'PAPER001')
+  assert.equal(first.hasMore, false)
+  const page = listItems(library.config, { limit: 1, offset: 0 })
+  assert.equal(page.total, 2)
+  assert.equal(page.hasMore, true)
+  assert.equal(page.items.length, 1)
+  assert.equal(listItems(library.config, { limit: 1, offset: 1 }).items[0].key, 'PAPER002')
+  assert.throws(() => listItems(library.config, { limit: 101 }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
+  assert.throws(() => listItems(library.config, { offset: 1_000_001 }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
+})
+
+test('item details include abstract, citation metadata, tags, collections, and attachment status', (t) => {
+  const library = makeLibrary(t)
+  const item = getItemDetails(library.config, 'PAPER001')
+  assert.equal(item.title, 'Synthetic article title')
+  assert.deepEqual(item.authors, ['Example Author'])
+  assert.equal(item.abstract, 'Synthetic abstract only; no real paper content.')
+  assert.equal(item.doi, '10.0000/synthetic')
+  assert.equal(item.publicationTitle, 'Fixture Journal')
+  assert.deepEqual(item.tags, ['Synthetic'])
+  assert.equal(item.collections.some((collection) => collection.key === 'COLL0002'), true)
+  assert.equal(item.hasPdfAttachment, true)
+  assert.equal(getItemDetails(library.config, 'PAPER009'), null)
+  assert.throws(() => getItemDetails(library.config, '../PAPER'), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
+})
+
+test('a subsequent query sees a new committed local item without restarting the reader', (t) => {
+  const library = makeLibrary(t)
+  assert.equal(listItems(library.config).total, 2)
+  const writer = new DatabaseSync(library.dbPath)
+  try {
+    writer.exec("INSERT INTO items (itemID, key, itemTypeID, dateAdded) VALUES (4, 'PAPER003', 2, '2026-01-01 00:00:00')")
+    writer.exec("INSERT INTO itemDataValues (valueID, value) VALUES (10, 'Fresh synthetic title')")
+    writer.exec('INSERT INTO itemData (itemID, fieldID, valueID) VALUES (4, 1, 10)')
+  } finally {
+    writer.close()
+  }
+  const refreshed = listItems(library.config)
+  assert.equal(refreshed.total, 3)
+  assert.equal(refreshed.items[0].key, 'PAPER003')
+})

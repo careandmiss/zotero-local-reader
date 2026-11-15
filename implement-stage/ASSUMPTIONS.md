@@ -12,9 +12,16 @@
 | A-007 | Earlier conversation mentioned login, but latest goal specifies the local library | No Zotero account/API credential; inherit DSH session access control | semantic | user |
 | A-008 | PDF preview implementation is not specified for the DSH Electron renderer | Same-origin inline PDF endpoint and native Chromium viewer first; if runtime lacks PDF rendering, use bundled PDF.js | interface | default |
 | A-009 | Zotero can be syncing/indexing or use schema revisions | Bounded read-only connection; return actionable busy/unsupported-schema errors, never bypass the lock with writes | interface | default |
+| A-010 | The request does not define compact list versus full item payloads | Search/list returns title, authors, date, key and attachment-presence metadata; abstract/DOI/tags are returned by item detail | interface | default |
+| A-011 | The request does not define how text search treats punctuation or wildcard characters | Literal substring matching across title, creator names, and abstract; `%`, `_`, and `!` are escaped, and PDF full-text search is out of scope | semantic | default |
+| A-012 | The request does not specify pagination or query-length limits | Default page size 50, maximum 100; offset is 0–1,000,000; search text is limited to 200 characters | interface | default |
+| A-013 | The request does not specify default ordering of the first page | Most recently added items first (`dateAdded DESC`, then `itemID DESC`) | semantic | default |
+| A-014 | The request does not define whether a parent collection includes items in descendants | Filtering matches direct Zotero collection membership only; selecting a parent does not implicitly include child collections | semantic | default |
+| A-015 | The request does not specify whether multiple collections may be selected | One collection at a time via a single-select filter | interface | default |
 
 ## Notes
 
 - A-001/A-007 reflect the user's explicit latest clarification and subsequent approval of the local-only plan; they supersede any older Web API/API-key interpretation.
+- A-013 was noticed immediately after the first F2 query implementation; it is recorded before further UI work and explicitly flagged for the independent sweep because it did not precede that query code.
 - A-003/A-005 define what “read” and “real time” mean in this build. Changing either changes the data-access semantics, so the implementation must preserve these rows.
-- The target repository was empty on GitHub when inspected; its URL is configured as `origin`. No push has been made or is implied.
+- The target repository was empty on GitHub when inspected; its URL is configured as `origin`. The user explicitly authorized normal pushes to this repository on 2026-11-15. Push only tested commits to `main`; do not force-push. No profile installation is authorized by that instruction.

@@ -30,12 +30,22 @@ export function makeLibrary(t, { name = 'zotero-reader-fixture-' } = {}) {
     INSERT INTO itemTypes (itemTypeID, typeName) VALUES (1, 'note'), (2, 'journalArticle'), (3, 'attachment');
     INSERT INTO fields (fieldID, fieldName) VALUES (1, 'title'), (2, 'date'), (3, 'abstractNote'), (4, 'DOI'), (5, 'publicationTitle'), (6, 'url');
     INSERT INTO collections (collectionID, key, collectionName, parentCollectionID) VALUES (1, 'COLL0001', 'Synthetic papers', NULL), (2, 'COLL0002', 'Experiments', 1);
-    INSERT INTO items (itemID, key, itemTypeID, dateAdded) VALUES (1, 'PAPER001', 2, '2025-01-01 00:00:00'), (2, 'ATTACH01', 3, '2025-01-01 00:00:01');
-    INSERT INTO collectionItems (collectionID, itemID) VALUES (1, 1), (2, 1);
-    INSERT INTO itemDataValues (valueID, value) VALUES (1, 'Synthetic article title'), (2, '2025'), (3, 'Synthetic abstract only; no real paper content.'), (4, '10.0000/synthetic'), (5, 'Fixture Journal'), (6, 'https://example.invalid/paper');
-    INSERT INTO itemData (itemID, fieldID, valueID) VALUES (1, 1, 1), (1, 2, 2), (1, 3, 3), (1, 4, 4), (1, 5, 5), (1, 6, 6);
-    INSERT INTO creators (creatorID, firstName, lastName, fieldMode) VALUES (1, 'Example', 'Author', 0);
-    INSERT INTO itemCreators (itemID, creatorID, creatorTypeID, orderIndex) VALUES (1, 1, 1, 0);
+    INSERT INTO items (itemID, key, itemTypeID, dateAdded) VALUES
+      (1, 'PAPER001', 2, '2025-01-01 00:00:00'),
+      (2, 'ATTACH01', 3, '2025-01-01 00:00:01'),
+      (3, 'PAPER002', 2, '2024-01-01 00:00:00');
+    INSERT INTO collectionItems (collectionID, itemID) VALUES (1, 1), (2, 1), (1, 3);
+    INSERT INTO itemDataValues (valueID, value) VALUES
+      (1, 'Synthetic article title'), (2, '2025'), (3, 'Synthetic abstract only; no real paper content.'),
+      (4, '10.0000/synthetic'), (5, 'Fixture Journal'), (6, 'https://example.invalid/paper'),
+      (7, 'Second synthetic title'), (8, '2024'), (9, 'A separate synthetic abstract.');
+    INSERT INTO itemData (itemID, fieldID, valueID) VALUES
+      (1, 1, 1), (1, 2, 2), (1, 3, 3), (1, 4, 4), (1, 5, 5), (1, 6, 6),
+      (3, 1, 7), (3, 2, 8), (3, 3, 9);
+    INSERT INTO creators (creatorID, firstName, lastName, fieldMode) VALUES (1, 'Example', 'Author', 0), (2, 'Other', 'Writer', 0);
+    INSERT INTO itemCreators (itemID, creatorID, creatorTypeID, orderIndex) VALUES (1, 1, 1, 0), (3, 2, 1, 0);
+    INSERT INTO tags (tagID, name) VALUES (1, 'Synthetic');
+    INSERT INTO itemTags (itemID, tagID) VALUES (1, 1);
     INSERT INTO itemAttachments (itemID, parentItemID, linkMode, contentType, path) VALUES (2, 1, 0, 'application/pdf', 'storage:synthetic.pdf');
   `)
   db.close()

@@ -5,8 +5,13 @@ import { basename, dirname, join, resolve } from 'node:path'
 
 const REQUIRED_TABLES = [
   'items', 'itemTypes', 'deletedItems', 'fields', 'itemData', 'itemDataValues',
-  'collections', 'collectionItems', 'itemAttachments', 'creators', 'itemCreators',
+  'collections', 'collectionItems', 'itemAttachments', 'itemNotes', 'creators',
+  'itemCreators', 'tags', 'itemTags',
 ]
+const ITEM_LIMIT_DEFAULT = 50
+const ITEM_LIMIT_MAX = 100
+const OFFSET_MAX = 1_000_000
+const QUERY_MAX_LENGTH = 200
 
 export class ZoteroReadError extends Error {
   constructor(code, message, options) {
@@ -142,5 +147,186 @@ export function listCollections(config = {}) {
         itemCount: row.itemCount,
       }
     })
+  })
+}
+
+function validateItemKey(key) {
+  if (typeof key !== 'string' || !/^[A-Za-z0-9]{8}$/u.test(key)) {
+    throw new ZoteroReadError('bad_request', 'Invalid Zotero item key.')
+  }
+}
+
+function normalizeListOptions(options = {}) {
+  const query = typeof options.query === 'string' ? options.query.trim() : ''
+  if (query.length > QUERY_MAX_LENGTH) throw new ZoteroReadError('bad_request', 'Search query is too long.')
+  const collectionKey = typeof options.collectionKey === 'string' && options.collectionKey !== '' ? options.collectionKey : null
+  if (collectionKey && !/^[A-Za-z0-9]{8}$/u.test(collectionKey)) throw new ZoteroReadError('bad_request', 'Invalid Zotero collection key.')
+  const limit = options.limit ?? ITEM_LIMIT_DEFAULT
+  const offset = options.offset ?? 0
+  if (!Number.isInteger(limit) || limit < 1 || limit > ITEM_LIMIT_MAX) throw new ZoteroReadError('bad_request', `Page size must be between 1 and ${ITEM_LIMIT_MAX}.`)
+  if (!Number.isInteger(offset) || offset < 0 || offset > OFFSET_MAX) throw new ZoteroReadError('bad_request', 'Invalid page offset.')
+  return { query, collectionKey, limit, offset }
+}
+
+function escapeLike(value) {
+  return value.replace(/[!%_]/gu, (character) => `!${character}`)
+}
+
+const ITEM_FROM = `
+  FROM items i
+  JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
+  LEFT JOIN itemData td ON td.itemID = i.itemID AND td.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'title')
+  LEFT JOIN itemDataValues title ON title.valueID = td.valueID
+  LEFT JOIN itemData dd ON dd.itemID = i.itemID AND dd.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'date')
+  LEFT JOIN itemDataValues date ON date.valueID = dd.valueID
+  LEFT JOIN itemData ad ON ad.itemID = i.itemID AND ad.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'abstractNote')
+  LEFT JOIN itemDataValues abstract ON abstract.valueID = ad.valueID
+`
+
+function itemFilters({ query, collectionKey }) {
+  const clauses = [
+    "i.itemID NOT IN (SELECT itemID FROM deletedItems)",
+    "it.typeName NOT IN ('note', 'attachment', 'annotation')",
+    'i.itemID NOT IN (SELECT itemID FROM itemAttachments WHERE parentItemID IS NOT NULL)',
+    'i.itemID NOT IN (SELECT itemID FROM itemNotes WHERE parentItemID IS NOT NULL)',
+  ]
+  const params = []
+  if (query) {
+    const like = `%${escapeLike(query)}%`
+    clauses.push(`(
+      COALESCE(title.value, '') LIKE ? ESCAPE '!'
+      OR COALESCE(abstract.value, '') LIKE ? ESCAPE '!'
+      OR EXISTS (
+        SELECT 1 FROM itemCreators ic JOIN creators c ON c.creatorID = ic.creatorID
+        WHERE ic.itemID = i.itemID
+          AND (COALESCE(c.firstName, '') LIKE ? ESCAPE '!' OR COALESCE(c.lastName, '') LIKE ? ESCAPE '!')
+      )
+    )`)
+    params.push(like, like, like, like)
+  }
+  if (collectionKey) {
+    clauses.push('EXISTS (SELECT 1 FROM collectionItems ci JOIN collections c ON c.collectionID = ci.collectionID WHERE ci.itemID = i.itemID AND c.key = ?)')
+    params.push(collectionKey)
+  }
+  return { sql: clauses.join(' AND '), params }
+}
+
+function creatorNames(db, itemIds) {
+  if (!itemIds.length) return new Map()
+  const placeholders = itemIds.map(() => '?').join(', ')
+  const rows = db.prepare(`
+    SELECT ic.itemID, c.firstName, c.lastName, c.fieldMode
+    FROM itemCreators ic JOIN creators c ON c.creatorID = ic.creatorID
+    WHERE ic.itemID IN (${placeholders})
+    ORDER BY ic.itemID, ic.orderIndex
+  `).all(...itemIds)
+  const byItem = new Map()
+  for (const row of rows) {
+    const first = String(row.firstName ?? '').trim()
+    const last = String(row.lastName ?? '').trim()
+    const name = Number(row.fieldMode) === 1 ? last : [first, last].filter(Boolean).join(' ')
+    if (!name) continue
+    const authors = byItem.get(row.itemID) ?? []
+    authors.push(name)
+    byItem.set(row.itemID, authors)
+  }
+  return byItem
+}
+
+export function listItems(config = {}, options = {}) {
+  const normalized = normalizeListOptions(options)
+  return withReadOnlyDatabase(config, (db) => {
+    const filters = itemFilters(normalized)
+    const totalRow = db.prepare(`SELECT COUNT(*) AS total ${ITEM_FROM} WHERE ${filters.sql}`).get(...filters.params)
+    const rows = db.prepare(`
+      SELECT i.itemID, i.key, it.typeName AS itemType,
+             COALESCE(title.value, '') AS title,
+             COALESCE(date.value, '') AS date,
+             i.dateAdded,
+             EXISTS (
+               SELECT 1 FROM itemAttachments a
+               WHERE a.parentItemID = i.itemID AND a.contentType = 'application/pdf' AND a.path LIKE 'storage:%'
+             ) AS hasPdfAttachment
+      ${ITEM_FROM}
+      WHERE ${filters.sql}
+      ORDER BY i.dateAdded DESC, i.itemID DESC
+      LIMIT ? OFFSET ?
+    `).all(...filters.params, normalized.limit, normalized.offset)
+    const authors = creatorNames(db, rows.map((row) => row.itemID))
+    return {
+      total: totalRow.total,
+      limit: normalized.limit,
+      offset: normalized.offset,
+      hasMore: normalized.offset + rows.length < totalRow.total,
+      items: rows.map((row) => ({
+        key: row.key,
+        title: row.title,
+        authors: authors.get(row.itemID) ?? [],
+        date: row.date,
+        itemType: row.itemType,
+        hasPdfAttachment: Boolean(row.hasPdfAttachment),
+      })),
+    }
+  })
+}
+
+export function getItemDetails(config = {}, key) {
+  validateItemKey(key)
+  return withReadOnlyDatabase(config, (db) => {
+    const row = db.prepare(`
+      SELECT i.itemID, i.key, it.typeName AS itemType,
+             COALESCE(title.value, '') AS title,
+             COALESCE(date.value, '') AS date,
+             COALESCE(abstract.value, '') AS abstract,
+             COALESCE(doi.value, '') AS doi,
+             COALESCE(publication.value, '') AS publicationTitle,
+             COALESCE(url.value, '') AS url
+      FROM items i
+      JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
+      LEFT JOIN itemData td ON td.itemID = i.itemID AND td.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'title')
+      LEFT JOIN itemDataValues title ON title.valueID = td.valueID
+      LEFT JOIN itemData dd ON dd.itemID = i.itemID AND dd.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'date')
+      LEFT JOIN itemDataValues date ON date.valueID = dd.valueID
+      LEFT JOIN itemData ad ON ad.itemID = i.itemID AND ad.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'abstractNote')
+      LEFT JOIN itemDataValues abstract ON abstract.valueID = ad.valueID
+      LEFT JOIN itemData ddoi ON ddoi.itemID = i.itemID AND ddoi.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'DOI')
+      LEFT JOIN itemDataValues doi ON doi.valueID = ddoi.valueID
+      LEFT JOIN itemData dpublication ON dpublication.itemID = i.itemID AND dpublication.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'publicationTitle')
+      LEFT JOIN itemDataValues publication ON publication.valueID = dpublication.valueID
+      LEFT JOIN itemData durl ON durl.itemID = i.itemID AND durl.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'url')
+      LEFT JOIN itemDataValues url ON url.valueID = durl.valueID
+      WHERE i.key = ? AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
+        AND it.typeName NOT IN ('note', 'attachment', 'annotation')
+    `).get(key)
+    if (!row) return null
+    const authors = creatorNames(db, [row.itemID]).get(row.itemID) ?? []
+    const tags = db.prepare(`
+      SELECT t.name FROM itemTags itg JOIN tags t ON t.tagID = itg.tagID
+      WHERE itg.itemID = ? ORDER BY t.name COLLATE NOCASE
+    `).all(row.itemID).map((tag) => tag.name)
+    const collections = db.prepare(`
+      SELECT c.key, c.collectionName AS name
+      FROM collectionItems ci JOIN collections c ON c.collectionID = ci.collectionID
+      WHERE ci.itemID = ? ORDER BY c.collectionName COLLATE NOCASE
+    `).all(row.itemID)
+    const hasPdfAttachment = Boolean(db.prepare(`
+      SELECT 1 FROM itemAttachments a
+      WHERE a.parentItemID = ? AND a.contentType = 'application/pdf' AND a.path LIKE 'storage:%'
+      LIMIT 1
+    `).get(row.itemID))
+    return {
+      key: row.key,
+      title: row.title,
+      authors,
+      date: row.date,
+      itemType: row.itemType,
+      abstract: row.abstract,
+      doi: row.doi,
+      publicationTitle: row.publicationTitle,
+      url: row.url,
+      tags,
+      collections,
+      hasPdfAttachment,
+    }
   })
 }
