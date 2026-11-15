@@ -63,6 +63,30 @@ test('item search and detail routes return only requested metadata', async (t) =
   })
 })
 
+test('tags endpoint returns collection-scoped counts and filters item lists by exact tag', async (t) => {
+  const library = makeLibrary(t)
+  const handler = createHandler({ getConfig: () => library.config })
+  await withServer(handler, async (base) => {
+    const tags = await fetch(`${base}/dsh-zotero-local/api/tags?q=syn`)
+    const tagsBody = await tags.json()
+    assert.equal(tags.status, 200)
+    assert.deepEqual(tagsBody.data.tags, [{ name: 'Synthetic', itemCount: 2 }])
+
+    const scoped = await fetch(`${base}/dsh-zotero-local/api/tags?collection=COLL0002`)
+    assert.deepEqual((await scoped.json()).data.tags, [{ name: 'Synthetic', itemCount: 1 }])
+
+    const filtered = await fetch(`${base}/dsh-zotero-local/api/items?tag=Synthetic`)
+    assert.equal((await filtered.json()).data.total, 2)
+
+    const invalidCollection = await fetch(`${base}/dsh-zotero-local/api/tags?collection=not-a-key`)
+    assert.equal(invalidCollection.status, 400)
+    const oversizedQuery = await fetch(`${base}/dsh-zotero-local/api/tags?q=${'x'.repeat(201)}`)
+    assert.equal(oversizedQuery.status, 400)
+    const oversizedTag = await fetch(`${base}/dsh-zotero-local/api/items?tag=${'x'.repeat(201)}`)
+    assert.equal(oversizedTag.status, 400)
+  })
+})
+
 test('item list route applies safe sort parameters and rejects invalid values', async (t) => {
   const library = makeLibrary(t)
   const handler = createHandler({ getConfig: () => library.config })

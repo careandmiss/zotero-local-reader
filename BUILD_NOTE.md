@@ -2,7 +2,7 @@
 
 ## Current stage
 
-Plan/Design approved by the user on 2026-11-15. The user approved a full-width three-pane main workspace while retaining the right-sidebar quick reader, and later requested Zotero-library visual alignment. The latest Client source has a compact collection tree, native sortable table (`aria-sort` on active title/creator/date columns), and an item inspector with Info/PDF views; typography was raised for inspector legibility. The UI reviewer confirmed the table semantics and requested no remaining source fixes. All 25 synthetic tests, four syntax checks, bundle check, and `git diff --check` pass. The previously applied bundle remains active in DSH desktop profile 0.2.2-rc.3, but the current DSH process predates this source edit and must restart to load it. No authenticated GUI verification is available; no Zotero screenshot/version was supplied, so this is structural/density alignment, not pixel-level matching. The Codex silent-assumption sweep remains unavailable; no clean cross-model verdict is claimed. Earlier screenshots confirm only the prior sidebar/PDF view. The unreadable-database state for the real-library setting remains unresolved; tests use synthetic data only and the agent has not queried the real database.
+Plan/Design approved by the user on 2026-11-15. After the user rejected the three-pane inspector and supplied two reference screenshots, the user approved an amendment: two-pane collection/tag + item list, full-width reader in the main panel, and a metadata-only right-sidebar quick preview that routes full reading to the main panel. The installed `dsh-plugin-zotero@0.8.1` source was inspected read-only to verify this interaction structure. Current source implements a parameterized read-only tag API/filter and the new layout. All 27 synthetic tests, four syntax checks, bundle check, and `git diff --check` pass; source UX and tag API reviewers found no blockers. The current DSH GUI has not loaded this update and no live visual verification is available; update the existing plugin and have the user restart the DSH process before acceptance. The Codex silent-assumption sweep remains unavailable; no clean cross-model verdict is claimed. The unreadable-database state for the real-library setting remains unresolved; all automated tests use synthetic data and the agent has not queried the real database.
 
 ## F0–F4 ladder
 
@@ -20,13 +20,18 @@ Plan/Design approved by the user on 2026-11-15. The user approved a full-width t
 - UI-A source checks: `node --test tests/*.test.js` → 25/25; all four syntax checks, bundle check, and diff check passed. `plugin_manager install_bundle` returned `application=applied`; the plugin row is enabled/active. The user restarted DSH before the later Zotero-style refinement; the current Client source edit needs a fresh process start before GUI review.
 - No authenticated browser control is available to the agent. The three-pane view and the current style refinement are not visually verified; no exact Zotero screenshot/version was supplied.
 
-## Zotero library style refinement — 2026-11-15
+## Prior Zotero library refinement — superseded
 
-- User requested a closer match to Zotero’s library display. Assumption: align the familiar collections → item table → item inspector structure/density; preserve DSH theme tokens because no reference screenshot/version is available, so this is not pixel-level reproduction.
-- Main view uses a native HTML table with Title/Creator/Date sort buttons and `aria-sort` only on the active sortable header; fields call only existing safe server sort keys. Type/PDF remain non-sortable.
-- The inspector has real Info/PDF views using existing metadata, attachment state, and same-origin reader route. No Notes, Related, edit/import/sync controls were added. Right-sidebar quick reader remains separate.
-- UX re-review closed the table semantics, inspector legibility, active-sort announcements, and PDF status accessible-name findings at source level. The PDF marker is hidden from assistive technology while localized status text remains available.
-- Latest checks: 25/25 synthetic tests, four syntax checks, bundle check, and `git diff --check` pass. Actual appearance, theme contrast, and responsive fit still need the user’s authenticated GUI review after restart.
+- The first refinement incorrectly assumed a three-pane collection → item table → inspector layout and did not use the screenshots supplied afterward. The user explicitly rejected that layout because the inspector made paper reading inconvenient.
+- That revision did include the native sortable table, active-only `aria-sort`, real Info/PDF content, accessible PDF status, and DSH theme tokens. Its 25-test/syntax/bundle evidence is historical only and does not describe the current screenshot-approved layout.
+- The current approved design and verification state are recorded in the UX correction section below and in `plan.md`/`spec.md`.
+
+## Screenshot-based UX correction — 2026-11-15
+
+- Source review: installed `dsh-plugin-zotero@0.8.1` `ZoteroPane` uses collection/tag navigation plus item list; item opening is separate from the library list. The screenshot's narrow PDF is a sidebar reader, so it should not be the main reading route. This package was inspected read-only.
+- User approved the two-pane main library + full-width main-panel reader + metadata-only sidebar quick preview. Plan/spec amendment was committed and pushed as `001908f` before source changes.
+- Current source now has `GET /tags` with collection-scoped counts, parameterized exact-tag filtering on `/items`, a two-pane collection/tag navigator + list, full-width PDF reader with PDF default, and a sidebar-to-main reader transition. Returning to the list retains its local filter/sort/page state.
+- Verification: `node --test tests/*.test.js` → 27/27; all four syntax checks, `node scripts/check-bundle.mjs`, and `git diff --check` pass. Source-only UX and tag API reviews found no blockers. Actual PDF sizing and sidebar → reader → return/filter-persistence checks remain for the user GUI; the current GUI has not loaded the bundle, so no live rendering is claimed.
 
 ## Reuse survey evidence
 
@@ -38,7 +43,7 @@ Plan/Design approved by the user on 2026-11-15. The user approved a full-width t
 ## Remote and deployment boundary
 
 - `origin` is `https://github.com/careandmiss/zotero-local-reader.git`; the user explicitly authorized normal pushes on 2026-11-15. Tested commit `1dd2632` was pushed to `main`; no force-push was used.
-- Git push authorization alone did not authorize profile changes; the user separately authorized local DSH installation in goal round 1. The updated three-pane bundle is installed and active. DSH restart is required to load a fresh Client module generation; do not claim the new UI is live until user validation.
+- Git push authorization alone did not authorize profile changes; the user separately authorized local DSH installation in goal round 1. The previously applied three-pane bundle remains installed and active; the screenshot-approved two-pane/full-width-reader source has not yet been installed. DSH restart is required after updating the bundle; do not claim the new UI is live until user validation.
 
 ## Verification boundary
 

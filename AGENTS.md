@@ -13,7 +13,7 @@ Run bundle check, all tests, and syntax checks before reporting work complete. K
 
 ## Architecture
 
-The DSH Host plugin reads Zotero SQLite read-only and streams only Zotero-managed PDF attachments through a same-origin route. The DSH Client registers a full-width main workspace via the keyed `main` slot and matching `sidebar.panellist` entry, while retaining a compact right-sidebar quick reader; both use that route and never call Zotero Desktop's localhost API or a cloud API.
+The DSH Host plugin reads Zotero SQLite read-only and streams only Zotero-managed PDF attachments through a same-origin route. The DSH Client registers a full-width main workspace via the keyed `main` slot and matching `sidebar.panellist` entry. The main library is a two-pane collection/tag navigator plus item list; opening an item switches to a full-width reader. The compact right-sidebar path is for metadata preview and routes full reading to the main panel. Never call Zotero Desktop's localhost API or a cloud API.
 
 ## Security
 

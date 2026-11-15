@@ -2,43 +2,58 @@
 
 ## Subject and job
 
-A local Zotero workspace inside DSH for researchers who need to locate a library item, inspect its metadata, and read a Zotero-managed PDF without launching Zotero Desktop. The primary surface is a full-width main panel; the existing right-sidebar reader remains as a compact quick-access path.
+A local Zotero workspace inside DSH for researchers who need to locate a library item, inspect its metadata, and comfortably read a Zotero-managed PDF without launching Zotero Desktop. The primary surface is a full-width main panel. The user's reference is the existing Zotero library plugin's two-pane library view; the narrow right-sidebar PDF reader is explicitly not the main paper-reading surface.
 
 ## Visual direction
 
-- **Visual direction:** restrained, information-dense Zotero library workbench rather than a decorative dashboard. Match the familiar collection-tree → item-table → selected-item-inspector hierarchy; this is structural/typographic alignment, not a pixel-perfect clone because no reference screenshot or exact Zotero version was provided.
-- **Color:** inherit DSH light/dark theme tokens for backgrounds, dividers, active rows, controls, and focus. Do not hard-code Zotero blue or reuse the icon palette as interface chrome.
-- **Type and density:** inherit the DSH interface font; compact table headers and rows around 12–13px, collection labels around 12px, and secondary status text around 11px. Prefer crisp separators and restrained radii over nested cards.
-- **Main workspace:** register one root-scoped keyed `main` panel and a matching `sidebar.panellist` entry. The three panes are collections, searchable/sortable item table, and an inspector with real `Info` / `PDF` tabs. The right-sidebar `sidebar.right.pane.tab` registration remains separate and compact.
-- **Collection navigation:** keep the “All items” entry, hierarchical disclosure controls, counts, indentation, selected/hover states, and a collection-filter fallback at narrow widths.
-- **Item table:** align compact column headings and rows; title, creator, and date headings operate existing safe sort keys and expose direction. Keep “recently added” in the existing sort selector. Do not imply type/PDF are sortable.
-- **Inspector:** keep selected item's title/creator visible above the tabs. `Info` shows existing bibliographic metadata/abstract/tags/collections; `PDF` shows existing attachment selection/status/viewer. Do not add fake Notes, Related, editing, import, or sync affordances.
-- **Responsive behavior:** use three panes when space permits, two columns when the main panel narrows, and list/detail navigation on narrow screens. Preserve access to collection filtering and the existing back-to-list action; prevent forced horizontal overflow.
-- **Compact reader:** retain its existing right-sidebar behavior; Zotero-native styling applies to the full-width main workspace.
+- **Structure:** two-pane library mode: collection/tag navigation on the left, compact item table on the right. Opening a paper switches to a document-first, full-width reader mode in the main panel.
+- **Color:** inherit DSH light/dark theme tokens for backgrounds, dividers, active rows, controls, and focus. Do not hard-code Zotero blue or copy another plugin's DOM/CSS.
+- **Type and density:** inherit the DSH interface font; compact table headers and rows around 12–13px, collection/tag labels around 12px, and secondary status text around 11px. Prefer crisp separators over nested cards.
+- **Main workspace:** register one root-scoped keyed `main` panel and a matching `sidebar.panellist` entry. Keep one library navigation pane and one item-list pane; do not render a persistent third details/PDF column.
+- **Collection navigation:** show the all-items entry, hierarchical collection disclosure controls, counts, indentation, selection/hover states, plus a searchable tag list with per-tag item counts. Selecting a collection clears the active tag; selecting a tag filters the list.
+- **Item table:** title, creator, and date headings use existing safe sort keys and expose direction. Keep “recently added” in the existing sort selector. Type/PDF columns are informational, not sortable.
+- **Full-width reader:** opening an item replaces the library content with a reader view. PDF is the default and fills the available main-panel width/height. Provide a clear back-to-library action and real Info/PDF views; Info reuses existing bibliographic metadata, abstract, tags, and collections.
+- **Compact reader:** retain the right-sidebar entry as a metadata quick preview. Its full-read action switches to the registered main panel; do not embed the narrow sidebar PDF as the primary paper-reading experience.
+- **Safety:** preserve read-only SQLite, key-resolved local PDF route, storage containment, no arbitrary paths, no external Zotero API, and no fake Notes/Related/edit/import/sync controls.
 
-## Main workspace sketch
+## Main library sketch
 
 ```text
-┌ DSH navigation: Zotero local library ─────────────────────────────┐
-│ [Back] Zotero local library · local/read-only · connection [Refresh]│
-├──────────────────┬────────────────────────┬───────────────────────┤
-│ Collections      │ [Search…] [Recent ▼]    │ Selected item title   │
-│ ▾ All items      │ Title ↕ | Creator ↕     │ Creator · year        │
-│ ▾ Collection     │ Date ↕ | Type | PDF     │ [Info] [PDF]           │
-│   ▸ Subcollection│ Compact selected row    │ Metadata / PDF viewer │
-│                  │ [Load more]              │                       │
-└──────────────────┴────────────────────────┴───────────────────────┘
-
-Right sidebar: compact search/list/detail quick reader remains available.
+┌ DSH navigation: Zotero local library ──────────────────────────────────┐
+│ [Back] Zotero local library · local/read-only · connection [Refresh]   │
+├──────────────────────────┬────────────────────────────────────────────┤
+│ Collections               │ [Search…] [Recent ▼] [↑↓]                 │
+│ ▾ All items               │ Title ↕ | Creator ↕ | Date ↕ | Type | PDF │
+│ ▾ Collection       count  │ Compact selected item rows                 │
+│   ▸ Subcollection   count │ [Load more]                               │
+│ ─ Tags ────────────────── │                                            │
+│ [Search tags…]             │                                            │
+│ All tags   Research   12   │                                            │
+└──────────────────────────┴────────────────────────────────────────────┘
 ```
 
-## Interaction and safety
+## Full-width reader sketch
 
-- Search covers title, creators, and abstract. Sorting is server-side and selected from a strict whitelist (recently added, title, date, creator); pagination keeps a stable tie-breaker.
-- Collection disclosure buttons use `aria-expanded` and localized labels; selecting a collection filters the list. The narrow layout also exposes the collection select control.
-- Selecting a row loads item metadata and local PDF attachments in the detail pane. On narrow screens, a back action returns to the same list.
-- The reader continues to use read-only SQLite and the same-origin PDF route. It does not access linked files outside Zotero `storage/`, call Zotero Web API, or send library contents to a cloud service.
+```text
+┌ DSH navigation: Zotero local library ──────────────────────────────────┐
+│ [Back to library] Item title · creator · year                          │
+│ [Info] [PDF]                                                           │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│                      Full-width local PDF viewer                       │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+## Interaction and responsive behavior
+
+- Search covers title, creators, and abstract. Sorting is server-side and selected from a strict whitelist; pagination keeps a stable tie-breaker.
+- Tag search is a debounced `q` filter on the read-only `/tags` endpoint; the selected exact tag is passed as a parameterized item-list filter.
+- Selecting a row opens the paper in the full-width reader; returning to the library preserves collection, tag, query, sort, page, and selected row state.
+- The sidebar quick preview displays metadata and offers a full-width read action. The full PDF does not remain confined to the narrow sidebar.
+- On narrow panels, the left navigator (collections and tags) stacks above the list instead of disappearing; the reader remains a full main-panel view and does not rely on horizontal scrolling.
+- Collection disclosure buttons expose `aria-expanded`; tags use `aria-pressed`; all actions remain keyboard reachable and localized.
 
 ## Review and verification status
 
-A UI/UX reviewer identified non-collapsible collection navigation, small labels, and active-filter visibility issues; those fixes were confirmed at source level. For this Zotero-style refinement, the reviewer confirmed native table semantics, active-only `aria-sort`, real Info/PDF content, accessible PDF status, and no remaining source-level blocker. Final checks pass (25/25 synthetic tests, four syntax checks, bundle, and diff). The prior bundle is active in the DSH profile, but the user restarted before this latest source edit; restart again to load it. No authenticated GUI validation or exact Zotero reference screenshot/version is available, so live rendering, theme contrast, and responsive fit remain unverified; this is structural/density matching, not pixel-level reproduction. The known real-library read error is separate and remains unresolved; no real Zotero database was inspected.
+The previous three-pane UI direction was rejected by the user after screenshot review. The installed `dsh-plugin-zotero@0.8.1` source was inspected read-only and confirmed a two-pane collection/tag + item-list library flow. The approved correction is implemented in source; 27 synthetic tests, four syntax checks, bundle validation, and diff checks pass, and source UX/API reviewers found no blockers. Live layout, theme contrast, and full-width Chromium PDF rendering still require the user to restart the existing DSH GUI and validate with a synthetic fixture. No real Zotero database or paper contents were inspected.

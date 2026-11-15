@@ -7,6 +7,7 @@ import {
   getLibraryHealth,
   listCollections,
   listItems,
+  listTags,
   LIST_SORT_DIRECTIONS,
   LIST_SORT_FIELDS,
   ZoteroReadError,
@@ -228,15 +229,28 @@ export function createHandler({ getConfig }) {
       return
     }
 
+    if (route === '/tags') {
+      try {
+        const query = url.searchParams.get('q') ?? ''
+        const collectionKey = url.searchParams.get('collection') ?? null
+        const tags = listTags(config, { query, collectionKey })
+        sendJson(res, 200, { ok: true, data: { tags } })
+      } catch (error) {
+        reportOperationError(res, error, 'Could not read Zotero tags.')
+      }
+      return
+    }
+
     if (route === '/items') {
       try {
         const query = url.searchParams.get('q') ?? ''
         const collectionKey = url.searchParams.get('collection') ?? null
+        const tag = url.searchParams.get('tag') ?? ''
         const limit = parseIntegerParameter(url.searchParams.get('limit'), 50, 1, 100, 'page size')
         const offset = parseIntegerParameter(url.searchParams.get('offset'), 0, 0, 1_000_000, 'page offset')
         const sort = parseEnumParameter(url.searchParams.get('sort'), LIST_SORT_FIELDS, 'dateAdded', 'sort field')
         const direction = parseEnumParameter(url.searchParams.get('direction'), LIST_SORT_DIRECTIONS, 'desc', 'sort direction')
-        const data = listItems(config, { query, collectionKey, limit, offset, sort, direction })
+        const data = listItems(config, { query, collectionKey, tag, limit, offset, sort, direction })
         sendJson(res, 200, { ok: true, data })
       } catch (error) {
         reportOperationError(res, error, 'Could not search the Zotero library.')

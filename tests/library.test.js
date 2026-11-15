@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
-import { getItemDetails, listItems, ZoteroReadError } from '../src/zotero-db.js'
+import { getItemDetails, listItems, listTags, ZoteroReadError } from '../src/zotero-db.js'
 import { makeLibrary } from './helpers/fixture.js'
 
 test('list returns compact bibliographic rows with authors and local-PDF metadata', (t) => {
@@ -44,6 +44,19 @@ test('collection filtering, pagination, and page bounds behave consistently', (t
   assert.equal(listItems(library.config, { limit: 1, offset: 1 }).items[0].key, 'PAPER002')
   assert.throws(() => listItems(library.config, { limit: 101 }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
   assert.throws(() => listItems(library.config, { offset: 1_000_001 }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
+})
+
+test('tag counts scope to collection and exact tag filters only matching parent items', (t) => {
+  const library = makeLibrary(t)
+  assert.deepEqual(listTags(library.config, { query: 'syn' }), [{ name: 'Synthetic', itemCount: 2 }])
+  assert.deepEqual(listTags(library.config, { collectionKey: 'COLL0002' }), [{ name: 'Synthetic', itemCount: 1 }])
+  assert.deepEqual(listTags(library.config, { query: "' OR 1=1 --" }), [])
+  assert.deepEqual(listItems(library.config, { tag: 'Synthetic' }).items.map((item) => item.key), ['PAPER001', 'PAPER002'])
+  assert.deepEqual(listItems(library.config, { collectionKey: 'COLL0002', tag: 'Synthetic' }).items.map((item) => item.key), ['PAPER001'])
+  assert.equal(listItems(library.config, { tag: "' OR 1=1 --" }).total, 0)
+  assert.throws(() => listTags(library.config, { query: 'x'.repeat(201) }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
+  assert.throws(() => listItems(library.config, { tag: 'x'.repeat(201) }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
+  assert.throws(() => listTags(library.config, { collectionKey: 'invalid' }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
 })
 
 test('list sorting uses whitelisted keys and stable page boundaries', (t) => {

@@ -46,7 +46,7 @@ export function makeLibrary(t, { name = 'zotero-reader-fixture-' } = {}) {
     INSERT INTO creators (creatorID, firstName, lastName, fieldMode) VALUES (1, 'Example', 'Author', 0), (2, 'Other', 'Writer', 0);
     INSERT INTO itemCreators (itemID, creatorID, creatorTypeID, orderIndex) VALUES (1, 1, 1, 0), (3, 2, 1, 0);
     INSERT INTO tags (tagID, name) VALUES (1, 'Synthetic');
-    INSERT INTO itemTags (itemID, tagID) VALUES (1, 1);
+    INSERT INTO itemTags (itemID, tagID) VALUES (1, 1), (3, 1);
     INSERT INTO itemAttachments (itemID, parentItemID, linkMode, contentType, path) VALUES
       (2, 1, 0, 'application/pdf', 'storage:synthetic.pdf'),
       (4, 1, 0, 'application/pdf', 'storage:newer.pdf');

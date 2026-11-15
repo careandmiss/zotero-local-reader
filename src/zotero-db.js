@@ -163,6 +163,8 @@ function validateItemKey(key) {
 function normalizeListOptions(options = {}) {
   const query = typeof options.query === 'string' ? options.query.trim() : ''
   if (query.length > QUERY_MAX_LENGTH) throw new ZoteroReadError('bad_request', 'Search query is too long.')
+  const tag = typeof options.tag === 'string' ? options.tag.trim() : ''
+  if (tag.length > QUERY_MAX_LENGTH) throw new ZoteroReadError('bad_request', 'Tag filter is too long.')
   const collectionKey = typeof options.collectionKey === 'string' && options.collectionKey !== '' ? options.collectionKey : null
   if (collectionKey && !/^[A-Za-z0-9]{8}$/u.test(collectionKey)) throw new ZoteroReadError('bad_request', 'Invalid Zotero collection key.')
   const limit = options.limit ?? ITEM_LIMIT_DEFAULT
@@ -173,11 +175,50 @@ function normalizeListOptions(options = {}) {
   if (!Number.isInteger(offset) || offset < 0 || offset > OFFSET_MAX) throw new ZoteroReadError('bad_request', 'Invalid page offset.')
   if (!LIST_SORT_FIELDS.includes(sort)) throw new ZoteroReadError('bad_request', 'Invalid sort field.')
   if (!LIST_SORT_DIRECTIONS.includes(direction)) throw new ZoteroReadError('bad_request', 'Invalid sort direction.')
-  return { query, collectionKey, limit, offset, sort, direction }
+  return { query, collectionKey, tag, limit, offset, sort, direction }
+}
+
+function normalizeTagOptions(options = {}) {
+  const query = typeof options.query === 'string' ? options.query.trim() : ''
+  if (query.length > QUERY_MAX_LENGTH) throw new ZoteroReadError('bad_request', 'Tag search query is too long.')
+  const collectionKey = typeof options.collectionKey === 'string' && options.collectionKey !== '' ? options.collectionKey : null
+  if (collectionKey && !/^[A-Za-z0-9]{8}$/u.test(collectionKey)) throw new ZoteroReadError('bad_request', 'Invalid Zotero collection key.')
+  return { query, collectionKey }
 }
 
 function escapeLike(value) {
   return value.replace(/[!%_]/gu, (character) => `!${character}`)
+}
+
+export function listTags(config = {}, options = {}) {
+  const normalized = normalizeTagOptions(options)
+  return withReadOnlyDatabase(config, (db) => {
+    const clauses = [
+      'i.itemID NOT IN (SELECT itemID FROM deletedItems)',
+      "it.typeName NOT IN ('note', 'attachment', 'annotation')",
+      'i.itemID NOT IN (SELECT itemID FROM itemAttachments WHERE parentItemID IS NOT NULL)',
+      'i.itemID NOT IN (SELECT itemID FROM itemNotes WHERE parentItemID IS NOT NULL)',
+    ]
+    const params = []
+    if (normalized.collectionKey) {
+      clauses.push('EXISTS (SELECT 1 FROM collectionItems ci JOIN collections c ON c.collectionID = ci.collectionID WHERE ci.itemID = i.itemID AND c.key = ?)')
+      params.push(normalized.collectionKey)
+    }
+    if (normalized.query) {
+      clauses.push("t.name LIKE ? ESCAPE '!'")
+      params.push(`%${escapeLike(normalized.query)}%`)
+    }
+    return db.prepare(`
+      SELECT t.name, COUNT(DISTINCT i.itemID) AS itemCount
+      FROM tags t
+      JOIN itemTags itg ON itg.tagID = t.tagID
+      JOIN items i ON i.itemID = itg.itemID
+      JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
+      WHERE ${clauses.join(' AND ')}
+      GROUP BY t.name
+      ORDER BY t.name COLLATE NOCASE, t.name
+    `).all(...params).map((row) => ({ name: row.name, itemCount: Number(row.itemCount) }))
+  })
 }
 
 const ITEM_FROM = `
@@ -205,7 +246,7 @@ const LIST_SORT_SQL = Object.freeze({
   ), '') COLLATE NOCASE`,
 })
 
-function itemFilters({ query, collectionKey }) {
+function itemFilters({ query, collectionKey, tag }) {
   const clauses = [
     "i.itemID NOT IN (SELECT itemID FROM deletedItems)",
     "it.typeName NOT IN ('note', 'attachment', 'annotation')",
@@ -229,6 +270,10 @@ function itemFilters({ query, collectionKey }) {
   if (collectionKey) {
     clauses.push('EXISTS (SELECT 1 FROM collectionItems ci JOIN collections c ON c.collectionID = ci.collectionID WHERE ci.itemID = i.itemID AND c.key = ?)')
     params.push(collectionKey)
+  }
+  if (tag) {
+    clauses.push('EXISTS (SELECT 1 FROM itemTags itg JOIN tags t ON t.tagID = itg.tagID WHERE itg.itemID = i.itemID AND t.name = ?)')
+    params.push(tag)
   }
   return { sql: clauses.join(' AND '), params }
 }

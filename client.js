@@ -6,6 +6,15 @@ window.__ModuleLoader__.load({
     const { useCallback, useEffect, useRef, useState } = React
     const NS = 'zotero-local-reader'
     const API = '/dsh-zotero-local/api'
+    let pendingMainReaderRequest = null
+    let mainReaderSequence = 0
+    const mainReaderSubscribers = new Set()
+    function requestMainReader(item) {
+      const request = { id: ++mainReaderSequence, item }
+      pendingMainReaderRequest = request
+      for (const subscriber of mainReaderSubscribers) subscriber(request)
+    }
+
     const dictionaries = {
       zh: {
         'tab.title': 'Zotero 本地库',
@@ -24,7 +33,17 @@ window.__ModuleLoader__.load({
         'workspace.expandCollection': '展开集合',
         'workspace.collapseCollection': '折叠集合',
         'workspace.items': '文献',
+        'workspace.tags': '标签',
+        'workspace.searchTags': '搜索标签',
+        'workspace.allTags': '全部标签',
+        'workspace.noTags': '当前范围没有标签。',
+        'workspace.tagError': '标签加载失败，请重试。',
+        'workspace.collapseTags': '折叠标签',
+        'workspace.expandTags': '展开标签',
         'workspace.selectItem': '选择一篇文献以查看详情',
+        'action.openFullReader': '在主工作区阅读 PDF',
+        'action.backToLibrary': '返回文献库',
+        'reader.emptyPdf': '这篇文献没有可在 Zotero 存储中读取的 PDF。',
         'workspace.sort': '排序依据',
         'workspace.sortDirection': '排序方向',
         'workspace.infoTab': '信息',
@@ -94,7 +113,17 @@ window.__ModuleLoader__.load({
         'workspace.expandCollection': 'Expand collection',
         'workspace.collapseCollection': 'Collapse collection',
         'workspace.items': 'Items',
+        'workspace.tags': 'Tags',
+        'workspace.searchTags': 'Search tags',
+        'workspace.allTags': 'All tags',
+        'workspace.noTags': 'No tags in this scope.',
+        'workspace.tagError': 'Could not load tags. Try again.',
+        'workspace.collapseTags': 'Collapse tags',
+        'workspace.expandTags': 'Expand tags',
         'workspace.selectItem': 'Select an item to view its details',
+        'action.openFullReader': 'Read PDF in main workspace',
+        'action.backToLibrary': 'Back to library',
+        'reader.emptyPdf': 'This item has no readable PDF in Zotero storage.',
         'workspace.sort': 'Sort by',
         'workspace.sortDirection': 'Sort direction',
         'workspace.infoTab': 'Info',
@@ -179,15 +208,21 @@ window.__ModuleLoader__.load({
       .zlr-toolbar-kicker { color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 15px; letter-spacing: .04em; }
       .zlr-status-inline { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 500; }
       .zlr-status-inline > span:first-child { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
-      .zlr-workspace-grid {
-        box-sizing: border-box; display: grid; grid-template-columns: minmax(185px, 225px) minmax(0, 1.2fr) minmax(0, .95fr);
-        min-height: 0; flex: 1; overflow: hidden; border-radius: 0;
-        background: var(--dsw-alias-bg-layer-1);
+      .zlr-library-grid {
+        box-sizing: border-box; display: grid; grid-template-columns: minmax(210px, 270px) minmax(0, 1fr);
+        min-height: 0; flex: 1; overflow: hidden; background: var(--dsw-alias-bg-layer-1);
       }
       .zlr-pane { box-sizing: border-box; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
-      .zlr-collections { gap: 1px; padding: 8px 6px; border-right: .5px solid var(--dsw-alias-border-l3); overflow-y: auto; background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1)); }
-      .zlr-list-pane { gap: 8px; padding: 8px 10px; border-right: .5px solid var(--dsw-alias-border-l3); }
-      .zlr-detail-pane { gap: 0; padding: 0; overflow: hidden; }
+      .zlr-library-nav { border-right: .5px solid var(--dsw-alias-border-l3); background: var(--dsw-specific-sidebar-fill, var(--dsw-alias-bg-layer-1)); }
+      .zlr-collections { flex: 1 1 55%; gap: 1px; padding: 8px 6px; overflow-y: auto; }
+      .zlr-tags-panel { display: flex; flex: 0 1 45%; min-height: 110px; flex-direction: column; border-top: .5px solid var(--dsw-alias-border-l3); padding: 8px 6px; }
+      .zlr-tags-panel[data-collapsed='true'] { flex: 0 0 auto; min-height: 0; }
+      .zlr-tag-list { min-height: 0; flex: 1; overflow: auto; margin-top: 4px; }
+      .zlr-tag-button { box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; min-height: 26px; padding: 4px 7px; border: 0; border-radius: var(--dsw-radius-sm, 4px); background: transparent; color: var(--dsw-alias-label-secondary); text-align: left; cursor: pointer; font: inherit; font-size: 11.5px; }
+      .zlr-tag-button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+      .zlr-tag-button[aria-pressed='true'] { background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-interactive-bg-hover)); color: var(--dsw-alias-label-primary); }
+      .zlr-tag-button:focus-visible, .zlr-tag-toggle:focus-visible { outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 1px; }
+      .zlr-list-pane { gap: 8px; padding: 8px 10px; }
       .zlr-list-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
       .zlr-search-label { display: flex; flex: 1 1 220px; min-width: 150px; flex-direction: column; gap: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
       .zlr-panel--wide .zlr-field-label { display: none; }
@@ -222,55 +257,46 @@ window.__ModuleLoader__.load({
       .zlr-collection-disclosure { box-sizing: border-box; display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm, 4px); background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; font: inherit; font-size: 14px; }
       .zlr-collection-disclosure:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
       .zlr-detail-view { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; }
-      .zlr-detail-header { flex: 0 0 auto; padding: 12px 14px 10px; border-bottom: .5px solid var(--dsw-alias-border-l3); background: var(--dsw-alias-bg-layer-1); }
       .zlr-detail-tabs { display: flex; align-items: flex-end; gap: 18px; flex: 0 0 auto; padding: 0 14px; border-bottom: .5px solid var(--dsw-alias-border-l2); }
+      .zlr-reader-topline { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: .5px solid var(--dsw-alias-border-l3); }
+      .zlr-reader-body { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+      .zlr-reader-info { flex: 1; min-width: 0; overflow: auto; padding: 16px 22px; }
+      .zlr-reader-pdf { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; padding: 8px 10px 10px; }
+      .zlr-reader-pdf .zlr-pdf-view { flex: 1; min-height: 0; }
       .zlr-detail-tab { position: relative; padding: 7px 1px 8px; border: 0; background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; font: inherit; font-size: 12px; }
       .zlr-detail-tab[aria-pressed='true'] { color: var(--dsw-alias-label-primary); }
       .zlr-detail-tab[aria-pressed='true']::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--dsw-alias-label-primary); content: ''; }
       .zlr-detail-tab:focus-visible { outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
-      .zlr-detail-scroll { min-height: 0; flex: 1; overflow: auto; padding: 12px 14px; }
-      .zlr-detail-content { display: flex; flex-direction: column; gap: 12px; }
       .zlr-pdf-view { display: flex; flex-direction: column; gap: 8px; }
-      .zlr-mobile-back { display: none; }
       @media (max-width: 1180px) {
-        .zlr-workspace-grid { grid-template-columns: minmax(160px, 190px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(180px, .7fr); }
-        .zlr-collections { grid-row: 1 / 3; }
-        .zlr-detail-pane { grid-column: 2; grid-row: 2; border-top: 1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.25)); }
+        .zlr-library-grid { grid-template-columns: minmax(180px, 230px) minmax(0, 1fr); }
       }
       @media (max-width: 760px) {
-        .zlr-workspace-grid { display: flex; flex-direction: column; }
-        .zlr-collections { display: none; }
-        .zlr-list-pane[data-selected='true'] { display: none; }
-        .zlr-detail-pane[data-selected='false'] { display: none; }
-        .zlr-detail-pane[data-selected='true'] { display: flex; flex: 1; }
+        .zlr-library-grid { display: flex; flex-direction: column; }
+        .zlr-library-nav { flex: 0 0 220px; max-height: 42%; border-right: 0; border-bottom: .5px solid var(--dsw-alias-border-l3); }
+        .zlr-collections { flex: 1 1 55%; min-height: 60px; }
+        .zlr-tags-panel { flex: 0 1 45%; min-height: 80px; }
         .zlr-list-pane { display: flex; flex: 1; }
-        .zlr-mobile-back { display: inline-flex; }
         .zlr-row-type { display: none; }
-         .zlr-table th:nth-child(1), .zlr-table td:nth-child(1) { width: 44%; }
-         .zlr-table th:nth-child(2), .zlr-table td:nth-child(2) { width: 30%; }
-         .zlr-table th:nth-child(3), .zlr-table td:nth-child(3) { width: 17%; }
-         .zlr-table th:nth-child(5), .zlr-table td:nth-child(5) { width: 9%; }
-        .zlr-panel--wide .zlr-collection-filter { display: flex; }
+        .zlr-table th:nth-child(1), .zlr-table td:nth-child(1) { width: 48%; }
+        .zlr-table th:nth-child(2), .zlr-table td:nth-child(2) { width: 31%; }
+        .zlr-table th:nth-child(3), .zlr-table td:nth-child(3) { width: 17%; }
+        .zlr-table th:nth-child(5), .zlr-table td:nth-child(5) { width: 4%; }
       }
       @container zlr-main (max-width: 950px) {
-        .zlr-workspace-grid { grid-template-columns: minmax(160px, 190px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(180px, .7fr); }
-        .zlr-collections { grid-row: 1 / 3; }
-        .zlr-detail-pane { grid-column: 2; grid-row: 2; border-top: 1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.25)); }
+        .zlr-library-grid { grid-template-columns: minmax(180px, 225px) minmax(0, 1fr); }
       }
       @container zlr-main (max-width: 660px) {
-        .zlr-workspace-grid { display: flex; flex-direction: column; }
-        .zlr-collections { display: none; }
-        .zlr-list-pane[data-selected='true'] { display: none; }
-        .zlr-detail-pane[data-selected='false'] { display: none; }
-        .zlr-detail-pane[data-selected='true'] { display: flex; flex: 1; }
+        .zlr-library-grid { display: flex; flex-direction: column; }
+        .zlr-library-nav { flex: 0 0 210px; max-height: 42%; border-right: 0; border-bottom: .5px solid var(--dsw-alias-border-l3); }
+        .zlr-collections { flex: 1 1 55%; min-height: 60px; }
+        .zlr-tags-panel { flex: 0 1 45%; min-height: 80px; }
         .zlr-list-pane { display: flex; flex: 1; }
-        .zlr-mobile-back { display: inline-flex; }
         .zlr-row-type { display: none; }
-         .zlr-table th:nth-child(1), .zlr-table td:nth-child(1) { width: 44%; }
-         .zlr-table th:nth-child(2), .zlr-table td:nth-child(2) { width: 30%; }
-         .zlr-table th:nth-child(3), .zlr-table td:nth-child(3) { width: 17%; }
-         .zlr-table th:nth-child(5), .zlr-table td:nth-child(5) { width: 9%; }
-        .zlr-panel--wide .zlr-collection-filter { display: flex; }
+        .zlr-table th:nth-child(1), .zlr-table td:nth-child(1) { width: 48%; }
+        .zlr-table th:nth-child(2), .zlr-table td:nth-child(2) { width: 31%; }
+        .zlr-table th:nth-child(3), .zlr-table td:nth-child(3) { width: 17%; }
+        .zlr-table th:nth-child(5), .zlr-table td:nth-child(5) { width: 4%; }
       }
     `
 
@@ -289,11 +315,17 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function Panel({ t, wide = false, onBack }) {
+    function Panel({ t, wide = false, onBack, onOpenInMain }) {
       const [state, setState] = useState({ kind: 'checking' })
       const [collections, setCollections] = useState([])
+      const [tags, setTags] = useState([])
       const [items, setItems] = useState([])
       const [query, setQuery] = useState('')
+      const [tagQuery, setTagQuery] = useState('')
+      const [selectedTag, setSelectedTag] = useState('')
+      const [tagsCollapsed, setTagsCollapsed] = useState(false)
+      const [tagError, setTagError] = useState(false)
+      const [loadingTags, setLoadingTags] = useState(false)
       const [collectionKey, setCollectionKey] = useState('')
       const [collapsedCollections, setCollapsedCollections] = useState(() => new Set())
       const [sort, setSort] = useState('dateAdded')
@@ -307,6 +339,9 @@ window.__ModuleLoader__.load({
       const [listRetryOptions, setListRetryOptions] = useState(null)
       const [listRevision, setListRevision] = useState(0)
       const [selectedItem, setSelectedItem] = useState(null)
+      const [readerMode, setReaderMode] = useState(false)
+      const [mainReaderRequest, setMainReaderRequest] = useState(null)
+      const handledMainReaderRequest = useRef(0)
       const [details, setDetails] = useState(null)
       const [detailLoading, setDetailLoading] = useState(false)
       const [detailError, setDetailError] = useState(false)
@@ -354,7 +389,7 @@ window.__ModuleLoader__.load({
         }
       }, [])
 
-      const fetchItems = useCallback(async (currentQuery, currentCollection, currentSort, currentDirection, options = {}) => {
+      const fetchItems = useCallback(async (currentQuery, currentCollection, currentTag, currentSort, currentDirection, options = {}) => {
         const { signal, offset = 0, append = false } = options
         setLoadingItems(true)
         setListError('')
@@ -363,6 +398,7 @@ window.__ModuleLoader__.load({
           const params = new URLSearchParams({ limit: '50', offset: String(offset), sort: currentSort, direction: currentDirection })
           if (currentQuery.trim()) params.set('q', currentQuery.trim())
           if (currentCollection) params.set('collection', currentCollection)
+          if (currentTag) params.set('tag', currentTag)
           const response = await fetch(`${API}/items?${params.toString()}`, { cache: 'no-store', signal })
           const result = await response.json()
           if (!result.ok) {
@@ -387,6 +423,27 @@ window.__ModuleLoader__.load({
           }
         } finally {
           if (!signal?.aborted) setLoadingItems(false)
+        }
+      }, [])
+
+      const fetchTags = useCallback(async (currentCollection, currentQuery, signal) => {
+        setLoadingTags(true)
+        setTagError(false)
+        try {
+          const params = new URLSearchParams()
+          if (currentCollection) params.set('collection', currentCollection)
+          if (currentQuery.trim()) params.set('q', currentQuery.trim())
+          const response = await fetch(`${API}/tags?${params.toString()}`, { cache: 'no-store', signal })
+          const result = await response.json()
+          if (!result.ok) throw new Error(result.error?.message ?? 'Could not load tags.')
+          setTags(result.data.tags ?? [])
+        } catch (error) {
+          if (error?.name !== 'AbortError') {
+            setTags([])
+            setTagError(true)
+          }
+        } finally {
+          if (!signal?.aborted) setLoadingTags(false)
         }
       }, [])
 
@@ -436,12 +493,22 @@ window.__ModuleLoader__.load({
       useEffect(() => {
         if (state.kind !== 'ready') return undefined
         const controller = new AbortController()
-        const timer = setTimeout(() => void fetchItems(query, collectionKey, sort, direction, { signal: controller.signal }), 250)
+        const timer = setTimeout(() => void fetchItems(query, collectionKey, selectedTag, sort, direction, { signal: controller.signal }), 250)
         return () => {
           clearTimeout(timer)
           controller.abort()
         }
-      }, [state.kind, listRevision, query, collectionKey, sort, direction, fetchItems])
+      }, [state.kind, listRevision, query, collectionKey, selectedTag, sort, direction, fetchItems])
+
+      useEffect(() => {
+        if (!wide || state.kind !== 'ready') return undefined
+        const controller = new AbortController()
+        const timer = setTimeout(() => void fetchTags(collectionKey, tagQuery, controller.signal), 150)
+        return () => {
+          clearTimeout(timer)
+          controller.abort()
+        }
+      }, [wide, state.kind, listRevision, collectionKey, tagQuery, fetchTags])
 
       const openItem = useCallback(async (item) => {
         detailAbort.current?.abort()
@@ -451,7 +518,8 @@ window.__ModuleLoader__.load({
         const controller = new AbortController()
         detailAbort.current = controller
         setSelectedItem(item)
-        setDetailTab('info')
+        setReaderMode(wide)
+        setDetailTab(wide ? 'pdf' : 'info')
         setDetails(null)
         setDetailError(false)
         setDetailLoading(true)
@@ -467,11 +535,27 @@ window.__ModuleLoader__.load({
         } finally {
           if (!controller.signal.aborted) setDetailLoading(false)
         }
-      }, [verifyPdf])
+      }, [verifyPdf, wide])
+
+      useEffect(() => {
+        if (!wide) return undefined
+        const receiveRequest = (request) => setMainReaderRequest(request)
+        mainReaderSubscribers.add(receiveRequest)
+        if (pendingMainReaderRequest) receiveRequest(pendingMainReaderRequest)
+        return () => mainReaderSubscribers.delete(receiveRequest)
+      }, [wide])
+
+      useEffect(() => {
+        if (!wide || !mainReaderRequest || mainReaderRequest.id <= handledMainReaderRequest.current) return
+        handledMainReaderRequest.current = mainReaderRequest.id
+        if (pendingMainReaderRequest?.id === mainReaderRequest.id) pendingMainReaderRequest = null
+        void openItem(mainReaderRequest.item)
+      }, [wide, mainReaderRequest, openItem])
 
       const closeItem = useCallback(() => {
         detailAbort.current?.abort()
         pdfAbort.current?.abort()
+        setReaderMode(false)
         setSelectedItem(null)
         setDetailTab('info')
         setDetails(null)
@@ -479,6 +563,15 @@ window.__ModuleLoader__.load({
         setPdfStatus('idle')
         setDetailError(false)
       }, [])
+
+      const requestFullWidthReader = useCallback((item) => {
+        if (wide) {
+          void openItem(item)
+          return
+        }
+        if (onOpenInMain) onOpenInMain(item)
+        else void openItem(item)
+      }, [wide, onOpenInMain, openItem])
 
       const resetList = () => {
         setItems([])
@@ -496,7 +589,13 @@ window.__ModuleLoader__.load({
       const changeCollection = (value) => {
         closeItem()
         resetList()
+        setSelectedTag('')
         setCollectionKey(value)
+      }
+      const changeTag = (value) => {
+        closeItem()
+        resetList()
+        setSelectedTag(value)
       }
       const changeSort = (value) => {
         resetList()
@@ -515,7 +614,7 @@ window.__ModuleLoader__.load({
         setSort(value)
         setDirection('asc')
       }
-      const loadMore = () => void fetchItems(query, collectionKey, sort, direction, { offset: nextOffset, append: true })
+      const loadMore = () => void fetchItems(query, collectionKey, selectedTag, sort, direction, { offset: nextOffset, append: true })
 
       const heading = state.kind === 'checking' ? t('status.checking')
         : state.kind === 'ready' ? t('status.ready')
@@ -610,35 +709,75 @@ window.__ModuleLoader__.load({
           return next
         })
       }
-      const collectionTree = h('nav', { className: 'zlr-pane zlr-collections', 'aria-label': t('workspace.collections') },
-        h('div', { style: { padding: '2px 8px 8px', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' } }, t('workspace.collections')),
-        h('button', {
-          type: 'button', className: 'zlr-collection-button', onClick: () => changeCollection(''),
-          'aria-current': collectionKey ? undefined : 'page',
-        }, h('span', { className: 'zlr-collection-name' }, h(CollectionIcon), h('span', null, t('collection.all')))),
-        visibleCollections.map((collection) => {
-          const hasChildren = (childCounts.get(collection.key) ?? 0) > 0
-          const collapsed = collapsedCollections.has(collection.key)
-          const depth = Math.max(0, Math.min(6, Number.isInteger(collection.depth) ? collection.depth : 0))
-          return h('div', { key: `tree-${collection.key}`, style: { display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, paddingInlineStart: depth * 9 } },
-            hasChildren ? h('button', {
-              type: 'button', className: 'zlr-collection-disclosure',
-              'aria-expanded': !collapsed,
-              'aria-label': `${t(collapsed ? 'workspace.expandCollection' : 'workspace.collapseCollection')}: ${collection.name}`,
-              title: t(collapsed ? 'workspace.expandCollection' : 'workspace.collapseCollection'),
-              onClick: () => toggleCollection(collection.key),
-            }, collapsed ? '›' : '⌄') : h('span', { 'aria-hidden': true, style: { flex: '0 0 22px', width: 22, height: 28 } }),
+      const collectionTree = h('aside', { className: 'zlr-pane zlr-library-nav' },
+        h('nav', { className: 'zlr-pane zlr-collections', 'aria-label': t('workspace.collections') },
+          h('div', { style: { padding: '2px 8px 8px', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' } }, t('workspace.collections')),
+          h('button', {
+            type: 'button', className: 'zlr-collection-button', onClick: () => changeCollection(''),
+            'aria-current': collectionKey ? undefined : 'page',
+          }, h('span', { className: 'zlr-collection-name' }, h(CollectionIcon), h('span', null, t('collection.all')))),
+          visibleCollections.map((collection) => {
+            const hasChildren = (childCounts.get(collection.key) ?? 0) > 0
+            const collapsed = collapsedCollections.has(collection.key)
+            const depth = Math.max(0, Math.min(6, Number.isInteger(collection.depth) ? collection.depth : 0))
+            return h('div', { key: `tree-${collection.key}`, style: { display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, paddingInlineStart: depth * 9 } },
+              hasChildren ? h('button', {
+                type: 'button', className: 'zlr-collection-disclosure',
+                'aria-expanded': !collapsed,
+                'aria-label': `${t(collapsed ? 'workspace.expandCollection' : 'workspace.collapseCollection')}: ${collection.name}`,
+                title: t(collapsed ? 'workspace.expandCollection' : 'workspace.collapseCollection'),
+                onClick: () => toggleCollection(collection.key),
+              }, collapsed ? '›' : '⌄') : h('span', { 'aria-hidden': true, style: { flex: '0 0 22px', width: 22, height: 28 } }),
+              h('button', {
+                type: 'button', className: 'zlr-collection-button', onClick: () => changeCollection(collection.key),
+                'aria-current': collectionKey === collection.key ? 'page' : undefined,
+                title: collection.path,
+                style: { width: 'auto', minWidth: 0, flex: '1 1 0' },
+              },
+                h('span', { className: 'zlr-collection-name', style: { minWidth: 0, flex: '1 1 0' } }, h(CollectionIcon), h('span', { style: { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, collection.name)),
+                h('span', { style: { flex: '0 0 auto', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11 } }, collection.itemCount),
+              ),
+            )
+          }),
+        ),
+        h('section', { className: 'zlr-tags-panel', 'data-collapsed': tagsCollapsed ? 'true' : 'false' },
+          h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, padding: '0 4px 5px' } },
+            h('strong', { style: { color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' } }, t('workspace.tags')),
+            selectedTag ? h('button', { type: 'button', onClick: () => changeTag(''), style: { ...panelButtonStyle, minHeight: 24, padding: '2px 6px' } }, t('workspace.allTags')) : null,
             h('button', {
-              type: 'button', className: 'zlr-collection-button', onClick: () => changeCollection(collection.key),
-              'aria-current': collectionKey === collection.key ? 'page' : undefined,
-              title: collection.path,
-              style: { width: 'auto', minWidth: 0, flex: '1 1 0' },
-            },
-              h('span', { className: 'zlr-collection-name', style: { minWidth: 0, flex: '1 1 0' } }, h(CollectionIcon), h('span', { style: { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, collection.name)),
-              h('span', { style: { flex: '0 0 auto', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11 } }, collection.itemCount),
-            ),
-          )
-        }),
+              type: 'button', className: 'zlr-tag-toggle', onClick: () => setTagsCollapsed((value) => !value),
+              'aria-expanded': !tagsCollapsed,
+              'aria-label': t(tagsCollapsed ? 'workspace.expandTags' : 'workspace.collapseTags'),
+              title: t(tagsCollapsed ? 'workspace.expandTags' : 'workspace.collapseTags'),
+              style: { ...panelButtonStyle, minHeight: 24, padding: '2px 6px', border: 0 },
+            }, tagsCollapsed ? '›' : '⌄'),
+          ),
+          tagsCollapsed ? null : h(React.Fragment, null,
+            h('input', {
+              type: 'search', value: tagQuery, placeholder: t('workspace.searchTags'),
+              onChange: (event) => setTagQuery(event.target.value),
+              'aria-label': t('workspace.searchTags'), style: { ...panelFieldStyle, minHeight: 28, padding: '4px 7px', fontSize: 11 },
+            }),
+            tagError ? h('div', { role: 'alert', style: { padding: 6, color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 11 } },
+              t('workspace.tagError'),
+              h('button', { type: 'button', onClick: () => void fetchTags(collectionKey, tagQuery), style: { ...panelButtonStyle, marginTop: 4, minHeight: 24 } }, t('action.retry')),
+            ) : null,
+            loadingTags && tags.length === 0 ? h('div', { role: 'status', style: { padding: 6, color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11 } }, t('item.loadingList')) : null,
+            !loadingTags && !tagError && tags.length === 0 ? h('div', { style: { padding: 7, color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11 } }, t('workspace.noTags')) : null,
+            tags.length ? h('div', { className: 'zlr-tag-list' },
+              h('button', {
+                type: 'button', className: 'zlr-tag-button', onClick: () => changeTag(''),
+                'aria-pressed': !selectedTag,
+              }, h('span', null, t('workspace.allTags'))),
+              tags.map((tag) => h('button', {
+                key: `tag-${tag.name}`, type: 'button', className: 'zlr-tag-button', onClick: () => changeTag(tag.name),
+                'aria-pressed': selectedTag === tag.name, title: tag.name,
+              }, h('span', { style: { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, tag.name),
+                h('span', { style: { flex: '0 0 auto', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 10.5 } }, tag.itemCount),
+              )),
+            ) : null,
+          ),
+        ),
       )
       const sortableHeader = (label, field) => {
         const active = sort === field
@@ -703,14 +842,14 @@ window.__ModuleLoader__.load({
         ),
         statusHint ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5 } },
           h('span', null, statusHint),
-          h('button', { type: 'button', onClick: () => void fetchItems(query, collectionKey, sort, direction, listRetryOptions ?? {}), disabled: loadingItems, style: panelButtonStyle }, t('action.retryList')),
+          h('button', { type: 'button', onClick: () => void fetchItems(query, collectionKey, selectedTag, sort, direction, listRetryOptions ?? {}), disabled: loadingItems, style: panelButtonStyle }, t('action.retryList')),
         ) : null,
         h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 } },
           h('h2', { style: { margin: 0, fontSize: 12, letterSpacing: '.02em', fontWeight: 650 } }, t('workspace.items')),
           h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary, GrayText)' } }, `${total} ${t('item.countSuffix')}`),
         ),
         loadingItems && items.length === 0 ? h('div', { role: 'status', style: { padding: 14, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12 } }, t('item.loadingList')) : null,
-        !loadingItems && items.length === 0 ? h('div', { style: { padding: '18px 12px', border: '1px dashed var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: 9, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5, textAlign: 'center' } }, query || collectionKey ? t('item.noResults') : t('item.emptyLibrary')) : null,
+        !loadingItems && items.length === 0 ? h('div', { style: { padding: '18px 12px', border: '1px dashed var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: 9, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5, textAlign: 'center' } }, query || collectionKey || selectedTag ? t('item.noResults') : t('item.emptyLibrary')) : null,
         items.length ? (wide ? wideItemRows : h('div', { style: { overflowY: 'auto', minHeight: 0, flex: 1, margin: '0 -4px' } }, items.map((item) => h('button', {
           key: item.key, type: 'button', onClick: () => void openItem(item),
           style: { display: 'block', width: '100%', padding: '10px 8px', textAlign: 'left', border: 0, borderTop: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.25))', background: 'transparent', color: 'inherit', cursor: 'pointer', font: 'inherit' },
@@ -725,7 +864,7 @@ window.__ModuleLoader__.load({
         hasMore ? h('button', { type: 'button', onClick: loadMore, disabled: loadingItems, style: { ...panelButtonStyle, alignSelf: 'center', marginTop: 4, opacity: loadingItems ? .6 : 1 } }, loadingItems ? t('item.loadingList') : t('action.loadMore')) : null,
       )
 
-      const detailHeader = details ? h('div', { className: wide ? 'zlr-detail-header' : undefined },
+      const detailHeader = details ? h('div', null,
         h('div', { style: { color: 'var(--dsw-alias-label-tertiary, GrayText)', textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 11, marginBottom: 5 } }, t('item.detail')),
         h('h2', { style: { margin: 0, fontSize: wide ? 14 : 16, lineHeight: 1.35, fontWeight: 600, overflowWrap: 'anywhere' } }, details.title || t('item.untitled')),
         h('div', { style: { marginTop: 6, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.45 } }, details.authors.length ? details.authors.join(' · ') : t('item.authorUnknown')),
@@ -777,34 +916,48 @@ window.__ModuleLoader__.load({
             loading: 'lazy',
             referrerPolicy: 'no-referrer',
             onError: () => setPdfStatus('error'),
-            style: { display: 'block', width: '100%', height: '58vh', minHeight: 360, border: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: wide ? 4 : 8, background: 'var(--dsw-alias-bg-layer-1, transparent)' },
+            style: { display: 'block', width: '100%', height: wide ? '100%' : '58vh', minHeight: wide ? 0 : 360, flex: wide ? '1 1 auto' : undefined, border: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: wide ? 4 : 8, background: 'var(--dsw-alias-bg-layer-1, transparent)' },
           }) : null,
         ) : h('div', { style: { padding: 10, borderRadius: wide ? 4 : 8, background: 'var(--dsw-alias-bg-layer-2, rgba(128,128,128,.1))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5 } }, details.hasPdfAttachment ? t('item.pdfMissing') : t('item.noPdf')),
       ) : null
-      const detailView = h(React.Fragment, null,
-        wide
-          ? h('button', { type: 'button', className: 'zlr-mobile-back', onClick: closeItem, style: { ...panelButtonStyle, alignSelf: 'flex-start' } }, `‹ ${t('action.back')}`)
-          : h('button', { type: 'button', onClick: closeItem, style: { ...panelButtonStyle, alignSelf: 'flex-start' } }, `‹ ${t('action.back')}`),
-        detailLoading ? h('div', { role: 'status', style: { padding: 16, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12 } }, t('item.loading')) : null,
-        detailError ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 12 } },
-          h('span', null, t('item.detailError')),
-          selectedItem ? h('button', { type: 'button', onClick: () => void openItem(selectedItem), style: panelButtonStyle }, t('action.retryDetail')) : null,
-        ) : null,
-        details ? wide
-          ? h('article', { className: 'zlr-detail-view' },
-            detailHeader,
+      const detailView = wide
+        ? h('article', { className: 'zlr-detail-view' },
+          h('div', { className: 'zlr-reader-topline' },
+            h('button', { type: 'button', onClick: () => setReaderMode(false), style: panelButtonStyle }, `‹ ${t('action.backToLibrary')}`),
+            h('div', { style: { minWidth: 0, flex: 1 } },
+              h('div', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 650 } }, details?.title || selectedItem?.title || t('item.untitled')),
+              h('div', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2, color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11 } }, (details?.authors?.length ? details.authors : selectedItem?.authors ?? []).join(' · ') || t('item.authorUnknown')),
+            ),
+          ),
+          detailLoading ? h('div', { role: 'status', style: { padding: 12, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12 } }, t('item.loading')) : null,
+          detailError ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 12, color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 12 } },
+            h('span', null, t('item.detailError')),
+            selectedItem ? h('button', { type: 'button', onClick: () => void openItem(selectedItem), style: panelButtonStyle }, t('action.retryDetail')) : null,
+          ) : null,
+          details ? h(React.Fragment, null,
             h('div', { className: 'zlr-detail-tabs', role: 'group', 'aria-label': t('item.detail') },
               h('button', { type: 'button', className: 'zlr-detail-tab', 'aria-pressed': detailTab === 'info', onClick: () => setDetailTab('info') }, t('workspace.infoTab')),
               h('button', { type: 'button', className: 'zlr-detail-tab', 'aria-pressed': detailTab === 'pdf', onClick: () => setDetailTab('pdf') }, `${t('workspace.pdfTab')}${details.pdfAttachments?.length ? ` · ${details.pdfAttachments.length}` : ''}`),
             ),
-            h('div', { className: 'zlr-detail-scroll', role: 'region', 'aria-label': detailTab === 'info' ? t('workspace.infoTab') : t('workspace.pdfTab') },
-              h('div', { className: 'zlr-detail-content' }, detailTab === 'info' ? infoContent : pdfContent),
+            h('div', { className: 'zlr-reader-body', role: 'region', 'aria-label': detailTab === 'info' ? t('workspace.infoTab') : t('workspace.pdfTab') },
+              detailTab === 'info'
+                ? h('div', { className: 'zlr-reader-info' }, infoContent)
+                : h('div', { className: 'zlr-reader-pdf' }, pdfContent),
             ),
-          )
-          : h('article', { style: { display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 0 } },
-            detailHeader, infoContent, pdfContent,
           ) : null,
-      )
+        )
+        : h(React.Fragment, null,
+          h('button', { type: 'button', onClick: closeItem, style: { ...panelButtonStyle, alignSelf: 'flex-start' } }, `‹ ${t('action.back')}`),
+          detailLoading ? h('div', { role: 'status', style: { padding: 16, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12 } }, t('item.loading')) : null,
+          detailError ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 12 } },
+            h('span', null, t('item.detailError')),
+            selectedItem ? h('button', { type: 'button', onClick: () => void openItem(selectedItem), style: panelButtonStyle }, t('action.retryDetail')) : null,
+          ) : null,
+          details ? h('article', { style: { display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 0 } },
+            detailHeader, infoContent,
+            details.pdfAttachments?.length ? h('button', { type: 'button', onClick: () => requestFullWidthReader(selectedItem), style: { ...panelButtonStyle, alignSelf: 'flex-start' } }, t('action.openFullReader')) : h('div', { style: { color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 12 } }, t('reader.emptyPdf')),
+          ) : null,
+        )
 
       return h('section', {
         className: wide ? 'zlr-panel--wide' : undefined,
@@ -826,13 +979,12 @@ window.__ModuleLoader__.load({
             : { padding: 10, borderRadius: 8, border: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 11, lineHeight: 1.5 },
         }, hint) : null,
         state.kind === 'ready' ? wide
-          ? h('div', { className: 'zlr-workspace-grid' },
-            collectionTree,
-            h('section', { className: 'zlr-pane zlr-list-pane', 'data-selected': selectedItem ? 'true' : 'false' }, listView),
-            h('section', { className: 'zlr-pane zlr-detail-pane', 'data-selected': selectedItem ? 'true' : 'false' }, selectedItem
-              ? detailView
-              : h('div', { role: 'status', style: { margin: 'auto', maxWidth: 240, padding: 20, textAlign: 'center', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 12, lineHeight: 1.6 } }, t('workspace.selectItem'))),
-          )
+          ? readerMode && selectedItem
+            ? detailView
+            : h('div', { className: 'zlr-library-grid' },
+              collectionTree,
+              h('section', { className: 'zlr-pane zlr-list-pane' }, listView),
+            )
           : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0, flex: 1 } }, selectedItem ? detailView : listView)
           : null,
         h('footer', { style: { display: wide ? 'none' : undefined, marginTop: 'auto', paddingTop: 9, borderTop: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 10.5 } }, t('footer.local')),
@@ -844,6 +996,10 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, dictionaries), 'zotero-local-reader: locale')
         const t = ctx.locale.bind(NS)
+        const openInMain = (item) => {
+          requestMainReader(item)
+          ctx.layout.selectPanel('zotero-local-reader')
+        }
         ctx.effect(() => ctx.sidebarRightTabs.register({
           id: 'zotero-local-reader',
           kind: 'zotero-local-reader',
@@ -859,7 +1015,7 @@ window.__ModuleLoader__.load({
         ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
           name: 'sidebar.right.pane.tab',
           key: 'zotero-local-reader',
-        }, () => h(Panel, { t })))
+        }, () => h(Panel, { t, onOpenInMain: openInMain })))
         ctx.slots.inject('main', () => ctx.slots.register({
           name: 'main',
           key: 'zotero-local-reader',
