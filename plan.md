@@ -241,6 +241,6 @@
 
 ## PDF 文件路由诊断（2026-11-15）
 
-用户确认失败发生在活动会话右侧 Zotero 文献预览 →「在侧栏打开 PDF」，文库/条目详情可见，只有 PDF 请求失败；多份/所有 PDF 都复现。该路径由 `ReaderResourcePane.verifyPdf()` 发 GET `/file/<parentKey>/<attachmentKey>`，此前从 JSON 只读取 `error.code` 用于分类 `missing` vs `error`，界面却丢弃代码并统一显示“无法检查或打开 PDF”。
+用户确认失败发生在活动会话右侧 Zotero 文献预览 →「在侧栏打开 PDF」，文库/条目详情可见，多个/所有 PDF 都复现。用户报告诊断码 `invalid_content_length`。按 `ReaderResourcePane.verifyPdf()` 分支，这表示请求已经返回 HTTP 200 与 `application/pdf`，但 `Content-Length` 缺失、为 0 或不是安全整数；不等同于 dataDir/数据库连接错误。当前客户端把该头当作必需条件，未读取 PDF body。
 
-已在 `client.js` 增加安全诊断码：只显示白名单后端枚举，其他 HTTP 响应显示 `http_<status>`，网络异常显示 `network_error`；不显示原始错误消息、路径或附件名。无效 Content-Length 使用 `invalid_content_length`。新增静态回归检查覆盖文档槽复用和诊断码呈现；全量 `node --test tests/*.test.js` 29/29 通过，四项语法检查、bundle check 与 diff check 通过。独立只读复核未发现诊断码隐私泄漏/allowlist 绕过；另建议对 `arrayBuffer()` 实收长度增加硬上限，此为非当前实证问题，暂留后续加固。未有 live GUI 证据，不能宣称 PDF 路由已修复。下一步提交/推送后请用户在内置插件页重试 Client 同步，再对 PDF 点击「重试检查 PDF」并报告屏幕显示的诊断码；依据码修复文件路由，最后完成原生侧栏及全屏 GUI 验收。
+先前已在 `client.js` 增加安全诊断码：只显示白名单后端枚举，其他 HTTP 响应显示 `http_<status>`，网络异常显示 `network_error`；不显示原始错误消息、路径或附件名。修复方向：将 Content-Length 只作为早期超限提示；无效或缺失时读取响应流，通过累计实际字节数的 bounded reader 强制 `MAX_NATIVE_PDF_BYTES` 上限，超限时立刻 cancel，不以无长度为失败。先加合成 ReadableStream 回归测试覆盖未知 Content-Length、正常流与超限取消，再实现；不使用/记录真实文库内容。独立只读复核确认诊断码无隐私泄漏；提醒的 arrayBuffer 内存上限风险由 bounded reader 一并解决。完成后跑全量测试、语法、bundle、diff 检查并推送，让用户同步 Client 并重试原生侧栏，再验全屏。
