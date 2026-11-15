@@ -46,6 +46,33 @@ test('collection filtering, pagination, and page bounds behave consistently', (t
   assert.throws(() => listItems(library.config, { offset: 1_000_001 }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
 })
 
+test('list sorting uses whitelisted keys and stable page boundaries', (t) => {
+  const library = makeLibrary(t)
+  const writer = new DatabaseSync(library.dbPath)
+  try {
+    writer.exec(`
+      INSERT INTO items (itemID, key, itemTypeID, dateAdded) VALUES (5, 'PAPER003', 2, '2025-01-01 00:00:00');
+      INSERT INTO itemDataValues (valueID, value) VALUES (10, 'Synthetic article title'), (11, '2025');
+      INSERT INTO itemData (itemID, fieldID, valueID) VALUES (5, 1, 10), (5, 2, 11);
+      INSERT INTO itemCreators (itemID, creatorID, creatorTypeID, orderIndex) VALUES (5, 1, 1, 0);
+    `)
+  } finally {
+    writer.close()
+  }
+
+  const firstPage = listItems(library.config, { sort: 'author', direction: 'asc', limit: 2 })
+  const secondPage = listItems(library.config, { sort: 'author', direction: 'asc', limit: 2, offset: 2 })
+  assert.deepEqual(firstPage.items.map((item) => item.key), ['PAPER003', 'PAPER001'])
+  assert.deepEqual(secondPage.items.map((item) => item.key), ['PAPER002'])
+  assert.equal(firstPage.hasMore, true)
+  assert.equal(secondPage.hasMore, false)
+  assert.deepEqual(listItems(library.config, { sort: 'title', direction: 'asc' }).items.map((item) => item.key), ['PAPER002', 'PAPER003', 'PAPER001'])
+  assert.deepEqual(listItems(library.config, { sort: 'date', direction: 'desc' }).items.map((item) => item.key), ['PAPER003', 'PAPER001', 'PAPER002'])
+  assert.deepEqual(listItems(library.config).items.map((item) => item.key), ['PAPER003', 'PAPER001', 'PAPER002'])
+  assert.throws(() => listItems(library.config, { sort: 'title DESC; DROP TABLE items' }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
+  assert.throws(() => listItems(library.config, { direction: 'sideways' }), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
+})
+
 test('item details include abstract, citation metadata, tags, collections, and attachment status', (t) => {
   const library = makeLibrary(t)
   const item = getItemDetails(library.config, 'PAPER001')

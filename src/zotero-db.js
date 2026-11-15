@@ -12,6 +12,8 @@ const ITEM_LIMIT_DEFAULT = 50
 const ITEM_LIMIT_MAX = 100
 const OFFSET_MAX = 1_000_000
 const QUERY_MAX_LENGTH = 200
+export const LIST_SORT_FIELDS = Object.freeze(['dateAdded', 'title', 'date', 'author'])
+export const LIST_SORT_DIRECTIONS = Object.freeze(['asc', 'desc'])
 
 export class ZoteroReadError extends Error {
   constructor(code, message, options) {
@@ -142,6 +144,8 @@ export function listCollections(config = {}) {
       }
       return {
         key: row.key,
+        parentKey: row.parentCollectionID && byId.has(row.parentCollectionID) ? byId.get(row.parentCollectionID).key : null,
+        depth: names.length - 1,
         name: row.collectionName,
         path: names.reverse().join(' / '),
         itemCount: row.itemCount,
@@ -163,9 +167,13 @@ function normalizeListOptions(options = {}) {
   if (collectionKey && !/^[A-Za-z0-9]{8}$/u.test(collectionKey)) throw new ZoteroReadError('bad_request', 'Invalid Zotero collection key.')
   const limit = options.limit ?? ITEM_LIMIT_DEFAULT
   const offset = options.offset ?? 0
+  const sort = options.sort ?? 'dateAdded'
+  const direction = options.direction ?? 'desc'
   if (!Number.isInteger(limit) || limit < 1 || limit > ITEM_LIMIT_MAX) throw new ZoteroReadError('bad_request', `Page size must be between 1 and ${ITEM_LIMIT_MAX}.`)
   if (!Number.isInteger(offset) || offset < 0 || offset > OFFSET_MAX) throw new ZoteroReadError('bad_request', 'Invalid page offset.')
-  return { query, collectionKey, limit, offset }
+  if (!LIST_SORT_FIELDS.includes(sort)) throw new ZoteroReadError('bad_request', 'Invalid sort field.')
+  if (!LIST_SORT_DIRECTIONS.includes(direction)) throw new ZoteroReadError('bad_request', 'Invalid sort direction.')
+  return { query, collectionKey, limit, offset, sort, direction }
 }
 
 function escapeLike(value) {
@@ -182,6 +190,20 @@ const ITEM_FROM = `
   LEFT JOIN itemData ad ON ad.itemID = i.itemID AND ad.fieldID = (SELECT fieldID FROM fields WHERE fieldName = 'abstractNote')
   LEFT JOIN itemDataValues abstract ON abstract.valueID = ad.valueID
 `
+
+const LIST_SORT_SQL = Object.freeze({
+  dateAdded: 'i.dateAdded',
+  title: "COALESCE(title.value, '') COLLATE NOCASE",
+  date: "COALESCE(date.value, '') COLLATE NOCASE",
+  author: `COALESCE((
+    SELECT CASE WHEN c.fieldMode = 1 THEN COALESCE(c.lastName, '')
+      ELSE TRIM(COALESCE(c.lastName, '') || ' ' || COALESCE(c.firstName, '')) END
+    FROM itemCreators ic JOIN creators c ON c.creatorID = ic.creatorID
+    WHERE ic.itemID = i.itemID
+    ORDER BY ic.orderIndex
+    LIMIT 1
+  ), '') COLLATE NOCASE`,
+})
 
 function itemFilters({ query, collectionKey }) {
   const clauses = [
@@ -249,7 +271,7 @@ export function listItems(config = {}, options = {}) {
              ) AS hasPdfAttachment
       ${ITEM_FROM}
       WHERE ${filters.sql}
-      ORDER BY i.dateAdded DESC, i.itemID DESC
+      ORDER BY ${LIST_SORT_SQL[normalized.sort]} ${normalized.direction.toUpperCase()}, i.itemID DESC
       LIMIT ? OFFSET ?
     `).all(...filters.params, normalized.limit, normalized.offset)
     const authors = creatorNames(db, rows.map((row) => row.itemID))

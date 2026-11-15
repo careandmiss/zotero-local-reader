@@ -6,7 +6,7 @@
 
 ## 本计划的结果定义
 
-构建一个独立 DSH bundle（不是单独 MCP 工具），在 DSH 右侧栏显示本地 Zotero 文库，并直接从本机 SQLite 与 storage 文件读取最新数据和 PDF。与当前 `dsh-plugin-zotero` 的差异是：它的阅读 UI/功能丰富但 Host 端依赖运行中的 Zotero Local API；本插件的数据层不依赖 Zotero 进程。现有 `zotero_offline_mcp` 保留给模型全文搜索/文本抽取，本插件负责 DSH 可见的文库浏览和 PDF 阅读，两者不互相替代。
+构建一个独立 DSH bundle（不是单独 MCP 工具），在 DSH 主工作区提供本地 Zotero 三栏文库，并保留右侧栏快速阅读入口；直接从本机 SQLite 与 storage 文件读取最新数据和 PDF。与当前 `dsh-plugin-zotero` 的差异是：它的阅读 UI/功能丰富但 Host 端依赖运行中的 Zotero Local API；本插件的数据层不依赖 Zotero 进程。现有 `zotero_offline_mcp` 保留给模型全文搜索/文本抽取，本插件负责 DSH 可见的文库浏览和 PDF 阅读，两者不互相替代。
 
 ## 文件范围
 
@@ -17,7 +17,7 @@
 - `index.js`：Host 插件入口、volatile Config、webServer 路由注册及生命周期清理。
 - `src/zotero-db.js`：路径探测、只读 SQLite 连接、集合/条目/附件查询。
 - `src/http.js`：同源/回环校验、JSON 信封、健康/集合/搜索/详情/PDF Range 路由。
-- `client.js`：DSH 侧栏 tab 和 React 组件（集合路径筛选、列表、详情、PDF 阅读器、空态/错误/加载态）。
+- `client.js`：DSH 主工作区 keyed panel、`sidebar.panellist` 入口与保留的右侧栏 tab（集合树、可排序列表、详情、PDF 阅读器、空态/错误/加载态）；`package.json` 注入所需的 DSH 内置布局/侧栏 Client 包。
 - `locale/zh.json`、`locale/en.json`：面板与插件元数据文案。
 - `icon.svg`：原创 bundle 图标；省略可选 detail 图片页。
 - `tests/*.test.js`：SQLite fixture、路由与只读/安全测试。
@@ -117,9 +117,9 @@
 
 1. 先在 `tests/library.test.js` 与 `tests/http.test.js` 添加排序、非法 sort、参数注入拒绝的合成回归测试。
 2. 在 `src/zotero-db.js` 增加排序白名单与稳定排序；在 `src/http.js` 校验并传递 `sort`/`direction`，不拼接未受信任 SQL。
-3. 在 `client.js` 为既有 Panel 增加 wide 模式：注册 `main` keyed panel 与 `sidebar.panellist` 图标；复用现有健康检查、详情/PDF 流程，显示集合树、列表列与三栏详情；保留 `sidebar.right.pane.tab` 的 compact 模式。
-4. 更新 `README.md`、`BUILD_NOTE.md`、`docs/UI_DIRECTION.md`、`implement-stage/BUILD_NOTE.md` 与 handoff 记录已实现/未验证状态。
-5. 安装已测试 bundle 到当前 DSH desktop profile；不启动替代服务器，不绕过认证。用户在现有 GUI 刷新后用 synthetic fixture 验收主面板、集合/搜索/排序/分页/详情/PDF。
+3. 在 `package.json` 注入 DSH 内置 `ui-layout` 与 `ui-sidebar` Client 包，使布局服务/扩展点可用；在 `client.js` 为既有 Panel 增加 wide 模式：注册 `main` keyed panel 与 `sidebar.panellist` 图标；复用现有健康检查、详情/PDF 流程，显示集合树、列表列与三栏详情；保留 `sidebar.right.pane.tab` 的 compact 模式。
+4. 更新 `README.md`、`spec.md`、`AGENTS.md`、`BUILD_NOTE.md`、`docs/UI_DIRECTION.md`、`implement-stage/BUILD_NOTE.md` 与 handoff，记录已实现/未验证状态。
+5. 安装已测试 bundle 到当前 DSH desktop profile；不启动替代服务器，不绕过认证。安装返回 `application=applied` 且面板 row active；替换 package 需重启 DSH 载入新 Client module generation。用户重启/刷新现有 GUI 后用 synthetic fixture 验收主面板、集合/搜索/排序/分页/详情/PDF。
 
 ### 验收口径
 
@@ -132,5 +132,5 @@
 
 - 不新增依赖，不改 profile 配置，不写真实 Zotero 数据；sort 参数必须经 enum 映射后才进入 SQL。
 - 若新的 panel 注册或布局失败，保留原 compact 右侧栏并回退本次 UI 变更；回退仅限插件仓库 bundle，不触碰 DSH profile 之外的数据。
-- **状态**：进行中；用户已批准范围，已完成 DSH slot/API 勘察；按 TDD 先写排序回归测试。当前基线为 23/23 测试通过，尚未改功能代码。
+- **状态**：实现、文档、团队评审、静态验证与安装均已完成；用户已批准范围并完成 DSH slot/API 勘察。排序回归测试、服务端白名单排序、可折叠三栏主面板及保留的右侧栏入口已写入工作区；全量 25/25 合成测试、四项语法检查、bundle 检查与 diff 检查通过。API/DSH reviewers 无阻塞项；UX reviewer 的集合折叠、字号与隐藏筛选问题均已修复并确认。`plugin_manager install_bundle` 返回 `application=applied`，`zotero-local-reader` row 为 enabled/active；替换 package 需由用户重启 DSH 载入新 Client module generation，之后仍需现有 GUI synthetic 手工验收、最终提交与 push。未触碰真实 Zotero 数据。
 - **不卡死计数**：当前 UI 扩展实施失败 0 次；若同一步连续失败 2 次，先回需求/设计复判。

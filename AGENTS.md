@@ -4,7 +4,7 @@
 
 - Build/check bundle: `node scripts/check-bundle.mjs`
 - Test: `node --test tests/*.test.js`
-- Syntax: `node --check index.js && node --check client.js && node --check src/zotero-db.js && node --check src/http.js`
+- Syntax: run `node --check` for `index.js`, `client.js`, `src/zotero-db.js`, and `src/http.js` sequentially; in Windows PowerShell 5, stop after each nonzero `$LASTEXITCODE` because `&&` is unsupported.
 - Do not install dependencies unless the plan is amended and the user approves the dependency/build-script risk.
 
 ## Verification
@@ -13,7 +13,7 @@ Run bundle check, all tests, and syntax checks before reporting work complete. K
 
 ## Architecture
 
-The DSH Host plugin reads Zotero SQLite read-only and streams only Zotero-managed PDF attachments through a same-origin route. The DSH Client registers a right-sidebar tab and uses that route for library browsing and reading. It never calls Zotero Desktop's localhost API or a cloud API.
+The DSH Host plugin reads Zotero SQLite read-only and streams only Zotero-managed PDF attachments through a same-origin route. The DSH Client registers a full-width main workspace via the keyed `main` slot and matching `sidebar.panellist` entry, while retaining a compact right-sidebar quick reader; both use that route and never call Zotero Desktop's localhost API or a cloud API.
 
 ## Security
 

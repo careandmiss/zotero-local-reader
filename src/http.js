@@ -7,6 +7,8 @@ import {
   getLibraryHealth,
   listCollections,
   listItems,
+  LIST_SORT_DIRECTIONS,
+  LIST_SORT_FIELDS,
   ZoteroReadError,
 } from './zotero-db.js'
 
@@ -75,6 +77,12 @@ function parseIntegerParameter(value, fallback, min, max, label) {
   const number = Number(value)
   if (!Number.isSafeInteger(number) || number < min || number > max) throw new ZoteroReadError('bad_request', `Invalid ${label}.`)
   return number
+}
+
+function parseEnumParameter(value, allowed, fallback, label) {
+  if (value === null) return fallback
+  if (!allowed.includes(value)) throw new ZoteroReadError('bad_request', `Invalid ${label}.`)
+  return value
 }
 
 function errorStatus(code) {
@@ -226,7 +234,9 @@ export function createHandler({ getConfig }) {
         const collectionKey = url.searchParams.get('collection') ?? null
         const limit = parseIntegerParameter(url.searchParams.get('limit'), 50, 1, 100, 'page size')
         const offset = parseIntegerParameter(url.searchParams.get('offset'), 0, 0, 1_000_000, 'page offset')
-        const data = listItems(config, { query, collectionKey, limit, offset })
+        const sort = parseEnumParameter(url.searchParams.get('sort'), LIST_SORT_FIELDS, 'dateAdded', 'sort field')
+        const direction = parseEnumParameter(url.searchParams.get('direction'), LIST_SORT_DIRECTIONS, 'desc', 'sort direction')
+        const data = listItems(config, { query, collectionKey, limit, offset, sort, direction })
         sendJson(res, 200, { ok: true, data })
       } catch (error) {
         reportOperationError(res, error, 'Could not search the Zotero library.')

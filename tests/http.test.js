@@ -63,6 +63,29 @@ test('item search and detail routes return only requested metadata', async (t) =
   })
 })
 
+test('item list route applies safe sort parameters and rejects invalid values', async (t) => {
+  const library = makeLibrary(t)
+  const handler = createHandler({ getConfig: () => library.config })
+  await withServer(handler, async (base) => {
+    const sorted = await fetch(`${base}/dsh-zotero-local/api/items?sort=title&direction=asc&limit=10`)
+    const sortedBody = await sorted.json()
+    assert.equal(sorted.status, 200)
+    assert.deepEqual(sortedBody.data.items.map((item) => item.key), ['PAPER002', 'PAPER001'])
+
+    const invalidSort = await fetch(`${base}/dsh-zotero-local/api/items?sort=title%20DESC%3b%20DROP%20TABLE%20items`)
+    assert.equal(invalidSort.status, 400)
+    assert.equal((await invalidSort.json()).error.code, 'bad_request')
+
+    const invalidDirection = await fetch(`${base}/dsh-zotero-local/api/items?direction=sideways`)
+    assert.equal(invalidDirection.status, 400)
+    assert.equal((await invalidDirection.json()).error.code, 'bad_request')
+
+    const stillReadable = await fetch(`${base}/dsh-zotero-local/api/items`)
+    assert.equal(stillReadable.status, 200)
+    assert.equal((await stillReadable.json()).data.total, 2)
+  })
+})
+
 test('item route rejects invalid keys and oversized page sizes', async (t) => {
   const library = makeLibrary(t)
   const handler = createHandler({ getConfig: () => library.config })

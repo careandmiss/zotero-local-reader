@@ -26,8 +26,10 @@ test('collection paths, hierarchy, and item counts come from the local database'
   const library = makeLibrary(t)
   const collections = listCollections(library.config)
   assert.equal(collections.length, 2)
+  const root = collections.find((collection) => collection.key === 'COLL0001')
+  assert.deepEqual(root, { key: 'COLL0001', parentKey: null, depth: 0, name: 'Synthetic papers', path: 'Synthetic papers', itemCount: 2 })
   const child = collections.find((collection) => collection.key === 'COLL0002')
-  assert.deepEqual(child, { key: 'COLL0002', name: 'Experiments', path: 'Synthetic papers / Experiments', itemCount: 1 })
+  assert.deepEqual(child, { key: 'COLL0002', parentKey: 'COLL0001', depth: 1, name: 'Experiments', path: 'Synthetic papers / Experiments', itemCount: 1 })
 })
 
 test('unsupported schema is reported without returning internal filesystem paths', (t) => {
