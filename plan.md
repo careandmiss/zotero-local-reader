@@ -236,11 +236,11 @@
 ### 修复与验收
 
 1. 先新增 `tests/client-slot-registration.test.js` 回归检查并确认旧实现失败，再删除重复 child declaration；不改 Host route、安全策略或 PDF 数据流。将此槽声明规则记入 `AGENTS.md`。
-2. 已验证：`node --test tests/*.test.js` 28/28 通过（含回归项；旧实现先失败，删除重复声明后通过）；`node --check` 四个入口均通过；bundle check 与 `git diff --check` 通过。
-3. 已完成 GUI 同步重试：用户确认错误消失且入口出现；文库与条目可见。当前会话右侧 Zotero 文献预览 →「在侧栏打开 PDF」仍对多个/所有 PDF 显示通用 `item.pdfError`，原生 viewer 尚未显示；继续查文件请求错误，不宣称 PDF 验收完成。
+2. 已验证：`node --test tests/*.test.js` 29/29 通过（含槽声明与安全 PDF 诊断码静态回归项）；`node --check` 四个入口均通过；bundle check 与 `git diff --check` 通过。
+3. 已完成 GUI 同步重试：用户确认错误消失且入口出现；文库与条目可见。用户随后确认原生侧栏 PDF 对多个/所有 PDF 显示通用 `item.pdfError`，viewer 尚未显示；本次新增安全诊断码用于下一轮排查，尚不宣称 PDF 验收完成。
 
 ## PDF 文件路由诊断（2026-11-15）
 
-用户确认失败发生在活动会话右侧 Zotero 文献预览 →「在侧栏打开 PDF」，文库/条目详情可见，只有 PDF 请求失败；多份/所有 PDF 都复现。该路径由 `ReaderResourcePane.verifyPdf()` 发 GET `/file/<parentKey>/<attachmentKey>`，当前从 JSON 只读取 `error.code` 用于分类 `missing` vs `error`，但界面丢弃代码并统一显示“无法检查或打开 PDF”。
+用户确认失败发生在活动会话右侧 Zotero 文献预览 →「在侧栏打开 PDF」，文库/条目详情可见，只有 PDF 请求失败；多份/所有 PDF 都复现。该路径由 `ReaderResourcePane.verifyPdf()` 发 GET `/file/<parentKey>/<attachmentKey>`，此前从 JSON 只读取 `error.code` 用于分类 `missing` vs `error`，界面却丢弃代码并统一显示“无法检查或打开 PDF”。
 
-下一步：添加 localized、安全的诊断代码（仅白名单后端枚举或 `http_<status>` / `network_error`，不显示原始错误消息、路径或附件名），使用户能区分 `database_busy`、`pdf_read_failed`、网络/HTTP 异常；添加/更新客户端静态回归检查，运行全量 tests、syntax、bundle 与 diff 检查。推送后让用户重试本页面同步，再点「重试检查 PDF」报告诊断码；依据码修复文件路由，最后完成原生侧栏及全屏 GUI 验收。
+已在 `client.js` 增加安全诊断码：只显示白名单后端枚举，其他 HTTP 响应显示 `http_<status>`，网络异常显示 `network_error`；不显示原始错误消息、路径或附件名。无效 Content-Length 使用 `invalid_content_length`。新增静态回归检查覆盖文档槽复用和诊断码呈现；全量 `node --test tests/*.test.js` 29/29 通过，四项语法检查、bundle check 与 diff check 通过。独立只读复核未发现诊断码隐私泄漏/allowlist 绕过；另建议对 `arrayBuffer()` 实收长度增加硬上限，此为非当前实证问题，暂留后续加固。未有 live GUI 证据，不能宣称 PDF 路由已修复。下一步提交/推送后请用户在内置插件页重试 Client 同步，再对 PDF 点击「重试检查 PDF」并报告屏幕显示的诊断码；依据码修复文件路由，最后完成原生侧栏及全屏 GUI 验收。

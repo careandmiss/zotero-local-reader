@@ -7,6 +7,15 @@ window.__ModuleLoader__.load({
     const NS = 'zotero-local-reader'
     const API = '/dsh-zotero-local/api'
     const MAX_NATIVE_PDF_BYTES = 32 * 1024 * 1024
+    const SAFE_PDF_ERROR_CODES = new Set([
+      'bad_request', 'database_busy', 'database_invalid', 'database_missing', 'database_unavailable',
+      'item_not_found', 'pdf_empty', 'pdf_missing', 'pdf_not_found', 'pdf_path_rejected', 'pdf_read_failed',
+      'schema_unsupported', 'untrusted_request',
+    ])
+    function safePdfDiagnosticCode(errorCode, status) {
+      if (typeof errorCode === 'string' && SAFE_PDF_ERROR_CODES.has(errorCode)) return errorCode
+      return Number.isInteger(status) ? `http_${status}` : 'network_error'
+    }
     const READER_TAB_ID = 'zotero-local-reader-item'
     const READER_RESOURCE_PREFIX = `dsh-resource://${READER_TAB_ID}/`
     function itemKeyFromResourceAddress(address) {
@@ -83,6 +92,7 @@ window.__ModuleLoader__.load({
         'item.pdfChecking': '正在读取 PDF 附件…',
         'item.pdfMissing': '本地 PDF 缺失、为空或不在 Zotero 存储目录中。',
         'item.pdfError': '无法检查或打开 PDF。请检查文库连接后重试。',
+        'item.pdfDiagnostic': '诊断代码',
         'item.pdfTooLarge': 'PDF 超过 32 MiB，侧栏原生阅读器无法完整载入。可改在主工作区阅读。',
         'item.nativeViewerUnavailable': '未找到 DSH 原生 PDF 阅读器。请确认 Document Preview 插件已启用。',
         'item.pdfViewerTitle': '本地 PDF 阅读器',
@@ -164,6 +174,7 @@ window.__ModuleLoader__.load({
         'item.pdfChecking': 'Loading the PDF attachment…',
         'item.pdfMissing': 'The local PDF is missing, empty, or outside Zotero storage.',
         'item.pdfError': 'Could not check or open the PDF. Check the library connection and retry.',
+        'item.pdfDiagnostic': 'Diagnostic code',
         'item.pdfTooLarge': 'This PDF exceeds 32 MiB and cannot be fully loaded in the sidebar viewer. Open it in the main workspace instead.',
         'item.nativeViewerUnavailable': 'The DSH native PDF viewer is unavailable. Check that the Document Preview plugin is enabled.',
         'item.pdfViewerTitle': 'Local PDF reader',
@@ -346,6 +357,7 @@ window.__ModuleLoader__.load({
       const [retry, setRetry] = useState(0)
       const [selectedPdfKey, setSelectedPdfKey] = useState('')
       const [pdfStatus, setPdfStatus] = useState('idle')
+      const [pdfDiagnostic, setPdfDiagnostic] = useState('')
       const [pdfData, setPdfData] = useState(null)
       const pdfAbort = useRef(null)
       const noResources = () => {}
@@ -354,6 +366,7 @@ window.__ModuleLoader__.load({
       const verifyPdf = useCallback(async (attachmentKey) => {
         pdfAbort.current?.abort()
         setPdfData(null)
+        setPdfDiagnostic('')
         if (!itemKey || !attachmentKey) {
           setSelectedPdfKey('')
           setPdfStatus('idle')
@@ -372,7 +385,10 @@ window.__ModuleLoader__.load({
             const length = Number(response.headers.get('content-length'))
             if (!Number.isSafeInteger(length) || length < 1) {
               await response.body?.cancel().catch(() => {})
-              if (!controller.signal.aborted) setPdfStatus('error')
+              if (!controller.signal.aborted) {
+                setPdfDiagnostic('invalid_content_length')
+                setPdfStatus('error')
+              }
               return
             }
             if (length > MAX_NATIVE_PDF_BYTES) {
@@ -393,16 +409,28 @@ window.__ModuleLoader__.load({
             return
           }
           let errorCode = ''
-          try {
-            const result = await response.json()
-            errorCode = result?.error?.code ?? ''
-          } catch {
+          if (contentType === 'application/json') {
+            try {
+              const result = await response.json()
+              errorCode = result?.error?.code ?? ''
+            } catch {
+              await response.body?.cancel().catch(() => {})
+            }
+          } else {
             await response.body?.cancel().catch(() => {})
           }
           if (controller.signal.aborted) return
-          setPdfStatus(['pdf_missing', 'pdf_not_found', 'pdf_path_rejected', 'pdf_empty'].includes(errorCode) ? 'missing' : 'error')
+          if (['pdf_missing', 'pdf_not_found', 'pdf_path_rejected', 'pdf_empty'].includes(errorCode)) {
+            setPdfStatus('missing')
+          } else {
+            setPdfDiagnostic(safePdfDiagnosticCode(errorCode, response.status))
+            setPdfStatus('error')
+          }
         } catch (error) {
-          if (error?.name !== 'AbortError' && !controller.signal.aborted) setPdfStatus('error')
+          if (error?.name !== 'AbortError' && !controller.signal.aborted) {
+            setPdfDiagnostic('network_error')
+            setPdfStatus('error')
+          }
         }
       }, [itemKey])
 
@@ -470,6 +498,8 @@ window.__ModuleLoader__.load({
       if (pdfStatus === 'missing' || pdfStatus === 'error') return h('div', { style: rootStyle },
         renderHeader(), h('div', { role: 'alert', style: statusStyle },
           h('div', null, pdfStatus === 'missing' ? t('item.pdfMissing') : t('item.pdfError')),
+          pdfStatus === 'error' && pdfDiagnostic ? h('div', { style: { marginTop: 6, fontSize: 11, color: 'var(--dsw-alias-label-tertiary, GrayText)' } },
+            `${t('item.pdfDiagnostic')}: ${pdfDiagnostic}`) : null,
           h('button', { type: 'button', onClick: () => void verifyPdf(selectedPdfKey), style: { ...buttonStyle, marginTop: 10 } }, t('action.retryPdf')),
         ))
       if (pdfStatus === 'tooLarge') return h('div', { style: rootStyle }, renderHeader(),
