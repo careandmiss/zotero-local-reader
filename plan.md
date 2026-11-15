@@ -134,3 +134,24 @@
 - 若新的 panel 注册或布局失败，保留原 compact 右侧栏并回退本次 UI 变更；回退仅限插件仓库 bundle，不触碰 DSH profile 之外的数据。
 - **状态**：实现、文档、团队评审、静态验证、安装、提交与 push 均已完成；用户已批准范围并完成 DSH slot/API 勘察。排序回归测试、服务端白名单排序、可折叠三栏主面板及保留的右侧栏入口已提交至 `main`（`1dd2632`）；全量 25/25 合成测试、四项语法检查、bundle 检查与 diff 检查通过。API/DSH reviewers 无阻塞项；UX reviewer 的集合折叠、字号与隐藏筛选问题均已修复并确认。`plugin_manager install_bundle` 返回 `application=applied`，`zotero-local-reader` row 为 enabled/active；替换 package 需由用户重启 DSH 载入新 Client module generation，之后仍需现有 GUI synthetic 手工验收。未触碰真实 Zotero 数据。
 - **不卡死计数**：当前 UI 扩展实施失败 0 次；若同一步连续失败 2 次，先回需求/设计复判。
+
+## Zotero 原生文库风格对齐（用户追加请求）
+
+### 需求与假设
+
+用户在重启安装后的 DSH 后要求“风格和 Zotero 文献库的展示界面一致”。本轮按 Zotero 桌面版常见的库视图进行结构与密度对齐：左侧集合树、中间紧凑条目表、右侧条目检查器；用户未提供本机 Zotero 版本或参考截图，因此不声称像素级复刻。颜色、键盘焦点与浅/深色主题仍继承 DSH token。
+
+### 范围
+
+1. 主工作区改为更扁平、紧凑的工具栏与三栏分隔；本地只读/连接状态弱化为辅助状态，不新增导入、编辑、同步等无实现操作。
+2. 集合树保留全部文献入口、层级/折叠/计数/选中态，行距与交互反馈采用 DSH 侧栏 token。
+3. 条目区使用紧凑表格密度；标题、作者、日期列标题可切换现有服务端排序键并显示排序方向；最近添加排序仍通过现有选择器，不给类型/PDF 列伪造排序能力。
+4. 详情窗格固定文献信息头与真实可用的“信息 / PDF”标签页，避免 PDF 被长摘要推至底部；信息页复用已有元数据、摘要、标签与集合，PDF 页复用既有 attachment 校验与同源 viewer。右侧栏快速阅读保持原行为。
+5. 不读取真实 Zotero 数据、不新增依赖、不调用 Zotero Desktop API；仅静态/合成测试可由 Agent 执行，authenticated GUI 需用户确认。
+
+### 验收
+
+- 主视图一眼呈现集合树、紧凑可排序文献表、右侧检查器；选中行/焦点/错误状态清晰且使用 DSH theme tokens。
+- 标题/作者/日期点击只改变白名单 sort/direction；原有最近添加/分页/筛选功能保持。
+- Info/PDF 标签只显示已有功能，PDF 仍由同源 route 和 storage containment 保证；compact 右侧栏不回归。
+- 25 个既有合成测试、四项 `node --check`、bundle 检查、`git diff --check` 通过；新 Client 视觉仍需用户在已重启 DSH 的认证 GUI 中验收。若用户提供脱敏截图，再作精确间距/颜色对比。

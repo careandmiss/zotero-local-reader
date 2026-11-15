@@ -6,25 +6,27 @@ A local Zotero workspace inside DSH for researchers who need to locate a library
 
 ## Visual direction
 
-- **Color:** inherit DSH light/dark theme tokens. The original icon uses deep blue-green `#17252D`, paper `#F0EEE7`, pale leaf `#D8E7E2`, muted green `#56766D`, and a restrained terracotta lens `#D76545`.
-- **Type:** inherit the DSH interface font. Keep primary list rows and collection labels around 12px for readability; use slightly smaller utility/status text only where secondary.
-- **Main workspace:** register one root-scoped keyed `main` panel and a matching `sidebar.panellist` entry. The three panes are collections, searchable/sortable item list, and item details/PDF. The right-sidebar `sidebar.right.pane.tab` registration remains separate and compact.
-- **Collection navigation:** show a hierarchical tree with disclosure buttons, counts, selected state, and a collection filter fallback at narrow widths.
+- **Visual direction:** restrained, information-dense Zotero library workbench rather than a decorative dashboard. Match the familiar collection-tree → item-table → selected-item-inspector hierarchy; this is structural/typographic alignment, not a pixel-perfect clone because no reference screenshot or exact Zotero version was provided.
+- **Color:** inherit DSH light/dark theme tokens for backgrounds, dividers, active rows, controls, and focus. Do not hard-code Zotero blue or reuse the icon palette as interface chrome.
+- **Type and density:** inherit the DSH interface font; compact table headers and rows around 12–13px, collection labels around 12px, and secondary status text around 11px. Prefer crisp separators and restrained radii over nested cards.
+- **Main workspace:** register one root-scoped keyed `main` panel and a matching `sidebar.panellist` entry. The three panes are collections, searchable/sortable item table, and an inspector with real `Info` / `PDF` tabs. The right-sidebar `sidebar.right.pane.tab` registration remains separate and compact.
+- **Collection navigation:** keep the “All items” entry, hierarchical disclosure controls, counts, indentation, selected/hover states, and a collection-filter fallback at narrow widths.
+- **Item table:** align compact column headings and rows; title, creator, and date headings operate existing safe sort keys and expose direction. Keep “recently added” in the existing sort selector. Do not imply type/PDF are sortable.
+- **Inspector:** keep selected item's title/creator visible above the tabs. `Info` shows existing bibliographic metadata/abstract/tags/collections; `PDF` shows existing attachment selection/status/viewer. Do not add fake Notes, Related, editing, import, or sync affordances.
 - **Responsive behavior:** use three panes when space permits, two columns when the main panel narrows, and list/detail navigation on narrow screens. Preserve access to collection filtering and the existing back-to-list action; prevent forced horizontal overflow.
-- **Signature:** the book-spread icon signals a personal reference library. Keep visual emphasis in the icon, status, and selected row rather than repeating decoration on every item.
+- **Compact reader:** retain its existing right-sidebar behavior; Zotero-native styling applies to the full-width main workspace.
 
 ## Main workspace sketch
 
 ```text
 ┌ DSH navigation: Zotero local library ─────────────────────────────┐
-│ [Back to conversation] Zotero local library       [Refresh]       │
-│ ● Local, read-only                                                  │
+│ [Back] Zotero local library · local/read-only · connection [Refresh]│
 ├──────────────────┬────────────────────────┬───────────────────────┤
-│ Collections      │ Search / sort           │ Item details          │
-│ ▾ All items      │ Title | Creator | Date  │ Title, abstract, DOI  │
-│ ▾ Collection     │ ─────────────────────── │ Tags / collections    │
-│   ▸ Subcollection│ Search result rows      │ Local PDF selector    │
-│                  │ [Load more]              │ Embedded PDF viewer   │
+│ Collections      │ [Search…] [Recent ▼]    │ Selected item title   │
+│ ▾ All items      │ Title ↕ | Creator ↕     │ Creator · year        │
+│ ▾ Collection     │ Date ↕ | Type | PDF     │ [Info] [PDF]           │
+│   ▸ Subcollection│ Compact selected row    │ Metadata / PDF viewer │
+│                  │ [Load more]              │                       │
 └──────────────────┴────────────────────────┴───────────────────────┘
 
 Right sidebar: compact search/list/detail quick reader remains available.
@@ -39,4 +41,4 @@ Right sidebar: compact search/list/detail quick reader remains available.
 
 ## Review and verification status
 
-A UI/UX reviewer identified non-collapsible collection navigation and small list/collection typography; both were addressed with accessible tree disclosures and larger primary labels. Follow-up identified that collapsing an ancestor could hide the active collection; the current handler moves the filter to the visible collapsed parent, and the reviewer confirmed this source-level resolution. Final checks pass (25/25 synthetic tests, syntax, bundle, and diff). The updated bundle is installed and its row is active; DSH must restart to load a fresh Client module generation. Authenticated GUI validation remains pending, so the agent cannot verify live rendering, light/dark contrast, or responsive behavior. Earlier user screenshots showed the pre-update right-sidebar reader and embedded PDF viewer; they do not verify this new main workspace. The known real-library read error is separate and remains unresolved; no real Zotero database was inspected.
+A UI/UX reviewer identified non-collapsible collection navigation, small labels, and active-filter visibility issues; those fixes were confirmed at source level. For this Zotero-style refinement, the reviewer confirmed native table semantics, active-only `aria-sort`, real Info/PDF content, accessible PDF status, and no remaining source-level blocker. Final checks pass (25/25 synthetic tests, four syntax checks, bundle, and diff). The prior bundle is active in the DSH profile, but the user restarted before this latest source edit; restart again to load it. No authenticated GUI validation or exact Zotero reference screenshot/version is available, so live rendering, theme contrast, and responsive fit remain unverified; this is structural/density matching, not pixel-level reproduction. The known real-library read error is separate and remains unresolved; no real Zotero database was inspected.

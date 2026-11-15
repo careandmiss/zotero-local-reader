@@ -7,7 +7,8 @@
 | F2 | Item list, detail metadata, search, pagination, and current-snapshot reads | `node --test tests/library.test.js tests/http.test.js tests/zotero-db.test.js` | MUST | ✅ passed |
 | F3 | Key-resolved local PDF route, path containment, Range responses, reader UI | `node --test tests/http-files.test.js` | MUST | ✅ passed |
 | F4 | Packaging/metadata/docs, review fixes, cumulative verification, local DSH install | `node scripts/check-bundle.mjs` | MUST | checks passed for the original sidebar release; installed/active; live UI/API behavior partially unverified; cross-model sweep unavailable |
-| UI-A | Approved three-pane main workspace, collapsible collections, server sorting; retain quick reader | `node --test tests/*.test.js` | MUST | source checks pass 25/25; installed/active; DSH restart and user GUI validation pending |
+| UI-A | Approved three-pane main workspace, collapsible collections, server sorting; retain quick reader | `node --test tests/*.test.js` | MUST | source checks pass 25/25; installed/active; visual validation pending |
+| UI-Z | Zotero-style library refinement: native sortable table, Info/PDF inspector, compact DSH-token chrome | `node --test tests/*.test.js` | MUST | source review closed; 25/25 checks pass; latest Client changes await restart and user GUI validation |
 
 ## Run record
 
@@ -22,8 +23,8 @@
 
 - User approved option A: a full-width three-pane workspace, retaining the existing right-sidebar quick reader. Added main keyed-panel + matching sidebar launcher registration and the DSH layout/sidebar Client injections; added whitelist-backed server sorting and collection `parentKey`/`depth` for collapsible navigation.
 - Team review: API reviewer found no actionable sorting/security defects; DSH integration reviewer found no slot/service blockers. UX reviewer flagged tree collapse, small labels, and active-filter visibility; all findings were fixed, and the follow-up confirmed the last fix at source level.
-- Final synthetic checks: `node --test tests/*.test.js` → 25/25; all four `node --check` commands pass; `node scripts/check-bundle.mjs` and `git diff --check` pass. `plugin_manager install_bundle` returned `application=applied`, and the plugin row is enabled/active; a peer-dependency warning was printed for the local link. DSH restart and manual GUI verification remain pending.
-- The profile still has the earlier sidebar-only version. Agent has no authenticated browser control; no live rendering claim is made. Real Zotero data remains untouched.
+- UI-A verification: `node --test tests/*.test.js` → 25/25; all four `node --check` commands, `node scripts/check-bundle.mjs`, and `git diff --check` pass. `plugin_manager install_bundle` returned `application=applied`, and the plugin row is enabled/active; a peer-dependency warning was printed for the local link. The user restarted before the later UI-Z source changes.
+- UI-Z source review: native table semantics expose `aria-sort` on only the active safe sort column; PDF status has localized accessible text. UX re-review found no remaining source issue. Latest tests pass, but this Client style edit needs a fresh DSH process start and GUI review. Agent has no authenticated browser control; no live rendering claim is made. Real Zotero data remains untouched.
 
 ## Deferred
 
