@@ -9,7 +9,8 @@
 | F4 | Packaging/metadata/docs, review fixes, cumulative verification, local DSH install | `node scripts/check-bundle.mjs` | MUST | checks passed for the original sidebar release; installed/active; live UI/API behavior partially unverified; cross-model sweep unavailable |
 | UI-A | Approved three-pane main workspace, collapsible collections, server sorting; retain quick reader | `node --test tests/*.test.js` | MUST | source checks pass 25/25; installed/active; visual validation pending |
 | UI-Z | Superseded first library-style attempt: three-pane native table + Info/PDF inspector | `node --test tests/*.test.js` | MUST | historical only; user rejected its narrow inspector reading layout |
-| UI-R | Screenshot-approved two-pane library, functional tags, full-width main-panel PDF reader, metadata-only sidebar preview | `node --test tests/*.test.js` | MUST | 27/27 synthetic tests, four syntax checks, bundle and diff pass; source reviews found no blockers; bundle applied/active; GUI validation pending |
+| UI-R | Screenshot-approved two-pane library, functional tags, immersive main-panel reader, metadata preview | `node --test tests/*.test.js` | MUST | 27/27 synthetic tests, four syntax checks, bundle and diff pass; source reviews found no blockers; GUI validation pending |
+| UI-FS | Per-item rightbar PDF resource tab, DSH-native fullscreen of same tab, plus immersive main-panel alternative | `node --test tests/*.test.js` | MUST | 27/27 synthetic tests, four syntax checks, bundle and diff pass; source UX review found no blocker; latest source not yet applied; GUI validation pending |
 
 ## Run record
 
@@ -32,6 +33,18 @@
 - User screenshots show a two-pane collection/tag library as the target and a narrow right-sidebar PDF view as the rejected reading surface. Read-only inspection of installed `dsh-plugin-zotero@0.8.1` confirmed the two-pane collection/tag + item-list architecture; its sidebar PDF reader is not used as the main reading route.
 - User approved the replacement design. Plan/spec amendment commit `001908f` was pushed before code changes. Source now includes collection-scoped tag counts, safe exact tag filtering, a two-pane main library, a full-width main reader with PDF default, return-to-list state retention, and sidebar metadata quick preview with full-reader navigation.
 - `node --test tests/*.test.js` → 27/27; all four `node --check` commands, `node scripts/check-bundle.mjs`, and `git diff --check` pass. Source UX and tag API reviews found no blockers; actual PDF sizing and sidebar → reader → return behavior remain for user GUI validation. The bundle update returned `application=applied`, and the plugin row is enabled/active; live rendering remains unverified.
+
+## UI-FS run record — 2026-11-15
+
+- User clarified from DSH viewer screenshots that papers must support side reading and fullscreen, and chose to keep DSH's native rightbar after the Session-scope constraint was explained. Plan/spec amendments `abda206` and corrective `450ec27` were pushed before final code.
+- `sidebarRight.openResource()` is not called from the global main panel because that panel has no mounted Session. Instead, the Session-bound metadata preview offers `zotero-local-reader-item` resource tabs by item key; PDF fills the rightbar and the host's native `push` / `fullscreen` control owns presentation. Main-list clicks continue to the immersive main-panel reader.
+- Technical follow-up found no remaining API blocker for the iframe revision. UX review corrected the main-row label and removed an inappropriate `aria-pressed` state; follow-up confirmed no remaining source-level UX issue. All 27 synthetic tests, four syntax checks, bundle validation, and diff check passed for that superseded iframe revision. It was never applied to the current DSH profile.
+
+## UI-Native-PDF run record — 2026-11-15
+
+- User clarified that screenshot 1's embedded/browser PDF reader is not attractive enough and requested the DSH-native document-preview reading style in screenshots 2/3. User approved using the DSH native renderer for the side resource tab and its fullscreen presentation.
+- Read-only source review of DSH 0.2.2-rc.3 `ui-sidebar-documentpreview` found a built-in PDF body keyed slot (`sidebar.right.tab.document`) that consumes complete bytes and renders DSH's themed PDF.js canvas. Proposed design feeds it only the Zotero key-based same-origin API bytes, with no filesystem path; the 32 MiB ceiling matches DSH workspace-file default, with the existing main-workspace reader offered above the cap.
+- New spec/plan amendment is approved; implementation and integration validation remain pending. The older iframe implementation is uncommitted, superseded, and must not be deployed. No real Zotero data was accessed.
 
 ## Deferred
 

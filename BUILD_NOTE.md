@@ -2,7 +2,7 @@
 
 ## Current stage
 
-Plan/Design approved by the user on 2026-11-15. After the user rejected the three-pane inspector and supplied two reference screenshots, the user approved an amendment: two-pane collection/tag + item list, full-width reader in the main panel, and a metadata-only right-sidebar quick preview that routes full reading to the main panel. The installed `dsh-plugin-zotero@0.8.1` source was inspected read-only to verify this interaction structure. Current source implements a parameterized read-only tag API/filter and the new layout. All 27 synthetic tests, four syntax checks, bundle check, and `git diff --check` pass; source UX and tag API reviewers found no blockers. `plugin_manager.install_bundle` returned `application=applied`, and the plugin row is enabled/active; no live visual verification is available. Have the user refresh/restart the existing DSH GUI before acceptance. The Codex silent-assumption sweep remains unavailable; no clean cross-model verdict is claimed. The unreadable-database state for the real-library setting remains unresolved; all automated tests use synthetic data and the agent has not queried the real database.
+The user has now approved a revised visual goal: use DSH's native document-preview PDF canvas like screenshots 2/3, not only the browser/iframe look of screenshot 1. The two-pane collection/tag + item-list library stays; due to the global `main` panel's lack of a mounted Session, the side/fullscreen PDF tab is still launched from the Session-bound metadata preview, with DSH native fullscreen on the same tab. Read-only source review identified the `ui-sidebar-documentpreview` PDF body and its public document-body slot. The earlier iframe side-tab implementation passed 27 synthetic tests, four syntax checks, bundle check, diff check and API/UX review, but was never committed or applied and is now superseded. The native renderer plan/spec amendment is approved but needs a design commit before implementation. No current source is deployed; visual behavior remains unverified. The Codex silent-assumption sweep remains unavailable; no clean cross-model verdict is claimed. The unreadable-database state for the real-library setting remains unresolved; all automated tests use synthetic data, and the agent has not queried the real database.
 
 ## F0–F4 ladder
 
@@ -32,6 +32,20 @@ Plan/Design approved by the user on 2026-11-15. After the user rejected the thre
 - User approved the two-pane main library + full-width main-panel reader + metadata-only sidebar quick preview. Plan/spec amendment was committed and pushed as `001908f` before source changes.
 - Current source now has `GET /tags` with collection-scoped counts, parameterized exact-tag filtering on `/items`, a two-pane collection/tag navigator + list, full-width PDF reader with PDF default, and a sidebar-to-main reader transition. Returning to the list retains its local filter/sort/page state.
 - Verification: `node --test tests/*.test.js` → 27/27; all four syntax checks, `node scripts/check-bundle.mjs`, and `git diff --check` pass. Source-only UX and tag API reviews found no blockers. Actual PDF sizing and sidebar → reader → return/filter-persistence checks remain for the user GUI. `plugin_manager.install_bundle` returned `application=applied` and the row is active, but the GUI rendering is unverified.
+
+## Dual reading-mode amendment — 2026-11-15
+
+- The user first clarified that papers need side reading and fullscreen. Plan/spec commits `abda206` and `450ec27` corrected the original assumption after review showed that root-scoped global panels have no mounted Session; the chosen native-rightbar route is launched from the Session-bound metadata preview.
+- The earlier side-tab implementation used a browser PDF iframe and DSH's `push` / `fullscreen` control. API/UX reviews found no remaining blocker; 27 synthetic tests, four syntax checks, bundle validation, and diff check passed. The source was never committed or applied to the active profile.
+- The user later clarified that the visual target is DSH's native document-preview style (screenshots 2/3), not only the browser/iframe look (screenshot 1). The earlier iframe implementation is superseded; no live browser/DOM inspection is available.
+- No real Zotero paths, database, or PDF contents were read.
+
+## Native DSH PDF canvas amendment — 2026-11-15
+
+- User-approved target: side and fullscreen reading should use DSH's native document-preview PDF canvas from screenshots 2/3, not a plain `<iframe>` browser viewer. The overall project goal was revised accordingly.
+- Source evidence: installed DSH 0.2.2-rc.3 `@deepseek-ai/dsh-client-ui-sidebar-documentpreview` registers its built-in PDF body under `sidebar.right.tab.document`, consumes `DocumentContent { kind: 'bytes' }`, and renders a themed PDF.js canvas with fit-width, zoom gestures, selectable text, and page shadows. Its parent document preview uses a declared keyed child slot; the plugin can pass verified Zotero API bytes to the renderer without exposing the storage path.
+- Current plan: replace only the Session-bound rightbar resource tab's iframe with the native PDF body slot; preserve the key-based GET API and DSH fullscreen on the same resource tab. Keep the root-scoped main-panel reader as a fallback because it has no Session. Bound full-byte loads at 32 MiB (matching DSH workspace-file default); above the cap, offer a clear “read in main workspace” alternative.
+- The updated spec and plan are approved and awaiting a design commit. Implementation, regression tests, API/UX review, deployment, and live GUI acceptance remain pending. No real Zotero data or PDF was accessed.
 
 ## Reuse survey evidence
 

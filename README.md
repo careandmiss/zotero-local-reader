@@ -4,7 +4,7 @@
 
 1. 在 DSH 的 **Plugins > Add plugin** 中添加本仓库目录。
 2. 如 Zotero 数据目录不是默认位置，在插件设置中把 `dataDir` 配为包含 `zotero.sqlite` 的目录；也可直接配置数据库文件路径。留空时使用本机标准目录发现。
-3. 从 DSH 左侧导航打开 **Zotero 本地库**：主视图左侧为集合树和可搜索标签，右侧为紧凑可排序文献表。打开条目后切换到主工作区的全宽 PDF 阅读视图；“信息/PDF”页签可查看元数据或 PDF，返回后保留文库筛选状态。右侧栏入口仅用于元数据快速预览，并可将全文阅读转到主工作区。
+3. 从 DSH 左侧导航打开 **Zotero 本地库**：主视图左侧为集合树和可搜索标签，右侧为紧凑可排序文献表；点击条目进入带返回按钮的沉浸式主工作区阅读视图。在有活动会话的页面打开右侧栏 Zotero 元数据预览，选择文献后可选择“在侧栏打开 PDF”或“在主工作区阅读 PDF”；侧栏 PDF tab 可用 DSH 原生全屏控件扩展为全屏。
 
 每次查询都会读取当前本机 SQLite 状态，面板每 15 秒自动刷新，也可使用顶部刷新按钮。Zotero Desktop 无需保持运行。
 
@@ -17,10 +17,10 @@
 
 ## 实现状态
 
-本轮根据用户截图和已安装文献库插件的源码纠正了布局：主工作区为“集合/标签 + 条目列表”两栏；打开条目后进入全宽阅读模式，PDF 默认显示；右侧栏保留元数据快速预览并可跳转到主工作区阅读。只读标签 API 与标签筛选已添加。27 项合成测试、四项语法检查、bundle 检查和 diff 检查全部通过；源码级 UX 与 API 复审无阻塞项。新 bundle 已应用到当前 DSH profile 且插件显示 active，但 live 视觉效果尚未验证；请刷新/重启现有 GUI 后验收。此前真实库设置曾出现“无法读取 Zotero 数据库”，根因仍未定位；自动化仅使用合成 fixture，没有读取真实数据库或论文内容。
+目标已按用户最新截图更新为优先采用 DSH 原生 document-preview PDF canvas（截图 2/3 的页面/工具栏风格），而不是只用普通 iframe（截图 1）。现有 Session-bound 侧栏 iframe 版本通过 27 项合成测试、四项语法检查、bundle 与 diff 检查及 API/UX 源码复审，但从未提交或部署，现已被新设计取代。新方案将从只读同源 Zotero API 加载字节并交给 DSH PDF body slot，随后重跑验证；尚未实现或应用到当前 DSH profile。视觉验收仍需用户刷新/重启现有 GUI；当前没有 agent 控制的认证浏览器。此前真实库设置曾出现“无法读取 Zotero 数据库”，根因仍未定位；自动化仅使用合成 fixture，没有读取真实数据库或论文内容。
 
 ## English
 
-This DSH Host + Client bundle provides a two-pane Zotero library view in the main workspace: collections and searchable tags on the left, a compact item list on the right. Opening an item switches to a full-width reader with PDF as the default view and a return-to-library action that preserves filters. The right sidebar remains a metadata quick preview and can route full reading to the main workspace. Add this repository through **Plugins > Add plugin**. Set `dataDir` in plugin settings to the folder containing `zotero.sqlite` when standard directory discovery does not find the library. Open **Zotero local library** from the left navigation to browse/collapse collections, filter by tag, search by title/author/abstract, sort from the title/creator/date headers, and read Zotero-managed PDFs.
+This DSH Host + Client bundle provides a two-pane Zotero library in the main workspace: collections and searchable tags on the left, a compact item list on the right. Clicking an item opens the immersive main-panel reader with a floating return action. In a DSH session, the separate right-sidebar metadata preview offers both “Open PDF in sidebar” and “Read PDF in main workspace”; DSH's native rightbar fullscreen control expands the same per-item PDF tab to fullscreen. Add this repository through **Plugins > Add plugin**. Set `dataDir` in plugin settings to the folder containing `zotero.sqlite` when standard directory discovery does not find the library. Open **Zotero local library** from the left navigation to browse/collapse collections, filter by tag, search by title/author/abstract, sort from the title/creator/date headers, and read Zotero-managed PDFs.
 
-The plugin reads SQLite in read-only mode, refreshes the panel every 15 seconds, and does not require Zotero Desktop to remain open. It supports PDFs below Zotero `storage/` only; linked external files, PDF full-text search, record editing, Zotero Web API, and cloud services are out of scope. All 27 synthetic tests, four syntax checks, bundle validation, and `git diff --check` pass; source-level UX and API reviews found no blockers. The updated bundle is applied to the current DSH profile and its plugin row is active, but the live UI has not been visually verified; refresh/restart the existing GUI before review. The unreadable-database state for the real-library setting remains unresolved; automated checks use synthetic data only and do not inspect the real library.
+The plugin reads SQLite in read-only mode, refreshes the panel every 15 seconds, and does not require Zotero Desktop to remain open. It supports PDFs below Zotero `storage/` only; linked external files, PDF full-text search, record editing, Zotero Web API, and cloud services are out of scope. The earlier iframe revision passed 27 synthetic tests, four syntax checks, bundle validation, and source API/UX review, but was not applied and is superseded by the newly approved DSH-native PDF canvas design. The native renderer implementation and its verification are pending. The unreadable-database state for the real-library setting remains unresolved; automated checks use synthetic data only and do not inspect the real library.

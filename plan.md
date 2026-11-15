@@ -191,19 +191,19 @@
 
 - 两栏文库、标签筛选 API、全宽主工作区阅读模式、侧栏快速预览到主阅读器的导航及状态保持已实现；设计修订提交 `001908f` 已推送。
 - `node --test tests/*.test.js` 27/27；`index.js`、`client.js`、`src/zotero-db.js`、`src/http.js` 四项语法检查，`node scripts/check-bundle.mjs` 与 `git diff --check` 均通过。两个源码复审均无阻塞。
-- 新 bundle 已在既有安装授权范围内应用到当前 DSH profile，`include:zotero-local-reader` 显示 enabled/active；仍需用户刷新/重启现有 GUI 并验收双栏布局、标签过滤、侧栏到全宽阅读及返回状态。agent 无认证浏览器控制，未声称视觉验收通过。
+- 上一版双栏/主阅读器 bundle 曾在既有安装授权范围内应用到当前 DSH profile，`include:zotero-local-reader` 显示 enabled/active；本次 Session-bound 侧栏 PDF / 宿主全屏代码尚未应用。仍需用户刷新/重启现有 GUI 并验收本计划末尾的两条阅读路径；agent 无认证浏览器控制，未声称视觉验收通过。
 - 所有测试仅用合成数据库/PDF；未读取真实 Zotero 数据。先前真实库读取错误仍未定位。
 
 ## 后续批准修订：侧栏阅读与全屏 — 2026-11-15
 
-用户明确要求“可以侧边这样打开，同时也可以全屏看文件”，并选择保留 DSH 原生 rightbar。技术复核确认全局 `main` 面板无活动 Session，不能从主文库调用 `sidebarRight.openResource()`；因此主列表仍进入沉浸主阅读器，侧栏 PDF resource tab 从会话级 metadata quick preview 发起。
+用户明确要求“可以侧边这样打开，同时也可以全屏看文件”，并进一步要求截图 2/3 的 DSH 原生文档预览阅读风格，不要只用截图 1 的普通嵌入式阅读器。技术复核确认全局 `main` 面板无活动 Session，不能从主文库调用 `sidebarRight.openResource()`；因此主列表仍进入沉浸主阅读器，侧栏 PDF resource tab 从会话级 metadata quick preview 发起。用户已批准让该 side/fullscreen tab 复用 DSH 原生 PDF canvas renderer。
 
 ### 实施与验收
 
 1. 保留 main-panel readerMode 的沉浸视图：隐藏插件 header/hint/metadata/tabs，PDF 铺满并保留浮动返回；仅在此模式关闭 rightbar。
 2. 新增按 item key 寻址的 DSH rightbar resource tab，并在 Session-bound metadata quick preview 中提供“Open PDF in sidebar” action；主文库是 sessionless global `main` 面板，因此其条目仍打开沉浸主阅读器，不调用 `openResource()`。
-3. 右栏 PDF 填满当前 panel，用户可用宿主原生 `push` / `fullscreen` 控件在侧读和全屏之间切换；侧读时不自动关闭 rightbar，resource URI 不含文件路径。
-4. 保留 loading/error/no-PDF、只读 DB、同源 GET、key-based attachment lookup、`storage/` containment 和零新依赖。
-5. 更新 UX 文档并复审；重跑 27 项合成测试、四项 syntax、bundle、diff 检查；提交/推送后由用户在现有 GUI 验收主列表沉浸阅读、Session-bound metadata preview → 侧栏 PDF → 宿主全屏同一 PDF、以及主面板返回状态。
+3. 右栏 PDF resource tab 复用 `ui-sidebar-documentpreview` 的 DSH PDF canvas 子 slot（适配宽度、缩放、文字层与文档预览主题），通过现有同源 GET API 读取 PDF bytes，不用 browser iframe、不展示 Zotero storage path。宿主原生 `push` / `fullscreen` 控件在侧读和全屏之间切换同一 tab；超过 32 MiB 时提供明确提示和“在主工作区阅读”替代入口。
+4. 保留 loading/error/no-PDF、只读 DB、同源 GET、key-based attachment lookup、`storage/` containment；不安装 npm 包，只依赖当前 DSH profile 已提供的 `ui-sidebar-documentpreview` Client package。
+5. 更新 UX 文档并复审；重跑 27 项合成测试、四项 syntax、bundle、diff 检查；提交/推送后由用户在现有 GUI 验收主列表沉浸阅读，以及 Session-bound metadata preview → DSH 原生 PDF canvas 侧栏 tab → 宿主全屏同一 tab；确认 Zotero path 不显示。
 
-此修订已获用户确认；侧栏 resource tab 的实现与 GUI 验收仍待完成。
+此修订已获用户确认。先前 iframe resource-tab 实现尚未提交或部署，现已被新批准的 DSH 原生 PDF canvas 设计取代；需实现 native renderer 组合、重跑回归与源码复审后，再更新 active profile 并由用户验收。
