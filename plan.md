@@ -219,10 +219,10 @@
 
 - 当前插件 `client.js:1181-1192` 已调用 `ctx.sidebarRightTabs.register()`，注册 `id/kind=zotero-local-reader` 及 localized guide entry，预期在右栏开始页显示「Zotero 本地阅读器」卡；同一模块还注册 keyed `main` 和 `sidebar.panellist`。
 - DSH 右栏 API 由 `packages/client/ui-sidebar-right/README.zh.md:118-129` 定义：guide entries 生成开始页卡片；被收起的 entry 可在「更多工具」中打开；点击 card 会打开对应 tab kind。
-- 已安装的 `dsh-plugin-zotero/client/client.js:39707-39718` 使用同一 `sidebarRightTabs.register(... guide ...)` 模式生成「Zotero 文献库」卡。故当前无须另造 HTML/按钮：先让用户点截图中的右侧「更多工具」查找本地卡。若该卡也缺失，沿 DSH「设置」底部 →「内置插件」→「插件列表」检查 Client 同步失败/Retry；错误未知时不改插件代码、不切换或重装 Host bundle。
+- 已安装的 `dsh-plugin-zotero/client/client.js:39707-39718` 使用同一 `sidebarRightTabs.register(... guide ...)` 模式生成「Zotero 文献库」卡。用户已展开截图中的右侧「更多工具」，反馈菜单仅有「添加插件」和「创建插件」，没有本地阅读器；另发“已安装插件”页面截图，显示 `Zotero 本地阅读器` 开关开启。该页面确认 Host bundle 已启用，但不是 Settings 的 Client 同步诊断页。结合左栏 launcher 与右栏卡都缺失，当前两个 Client 入口均未呈现。无需另造 HTML/按钮；接下来沿 DSH「设置」底部 →「内置插件」→「插件列表」检查 Client 同步失败/Retry，错误未知时不改插件代码、不切换或重装 Host bundle。
 
 ### 本次验收条件与下一步
 
-1. 用户点击右侧开始页「更多工具」，确认是否有「Zotero 本地阅读器」卡；若有则点击，验证本地文库面板打开。
+1. 已完成：用户展开右侧开始页「更多工具」，确认菜单只有「添加插件」「创建插件」，没有「Zotero 本地阅读器」卡。
 2. 若没有，用户在「内置插件 → 插件列表」提供 Client 同步错误或 Retry 结果，之后再确定代码/运行时修复。
 3. 本地卡、左侧入口及 PDF 原生侧栏/全屏均需在现有 GUI 验收；未验证前不得宣称交付完成。已有 27 项合成测试与语法/bundle 检查对应的代码未因本次设计说明而改变。
