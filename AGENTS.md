@@ -19,7 +19,7 @@ The DSH Host plugin reads Zotero SQLite read-only and streams only Zotero-manage
 
 - A `plugin_manager` row marked enabled/active proves the Host bundle state, not that the browser Client factory ran or registered its slots. For a missing panel, check the live Client module graph/loader diagnostics or inspect the user's visible sidebar before concluding the entry point is present.
 - A registered `sidebar.panellist` entry normally appears in the sidebar. DSH's “More” menu is conditional on `sidebar.panellist.actions`; only manually unpinned entries are moved there. Do not tell users that every plugin entry is under “More” by default.
-- If a bundle is enabled but its Client panel is missing, guide the user to **Settings > Plugins > Plugin list**: DSH exposes page-local Client synchronization failures and retry there. Do not toggle or reinstall the Host bundle based only on a missing Client launcher.
+- If a bundle is enabled but its Client panel is missing, guide the user to the sidebar-bottom **Settings > Built-in plugins > Plugin list** (`设置 > 内置插件 > 插件列表`): DSH exposes page-local Client synchronization failures and retry there. Do not toggle or reinstall the Host bundle based only on a missing Client launcher.
 
 ## Security
 
