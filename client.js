@@ -26,9 +26,9 @@ window.__ModuleLoader__.load({
 
     const dictionaries = {
       zh: {
-        'tab.title': 'Zotero 本地库',
-        'guide.title': 'Zotero 本地库',
-        'guide.description': '在 DSH 主工作区中整理、搜索并阅读本机 Zotero 文献。',
+        'tab.title': 'Zotero 本地阅读器',
+        'guide.title': 'Zotero 本地阅读器',
+        'guide.description': '只读浏览本机 Zotero 文库；PDF 可在 DSH 原生侧栏阅读器中侧读或全屏阅读。',
         'status.checking': '正在检查本地文库…',
         'status.ready': '本地文库已连接',
         'status.missing': '未找到 Zotero 数据库',
@@ -107,9 +107,9 @@ window.__ModuleLoader__.load({
         'footer.local': 'Zotero 桌面端可以保持关闭。内容只在本机读取。',
       },
       en: {
-        'tab.title': 'Zotero local library',
-        'guide.title': 'Zotero local library',
-        'guide.description': 'Browse, search, and read your local Zotero library in the DSH workspace.',
+        'tab.title': 'Zotero Local Reader',
+        'guide.title': 'Zotero Local Reader',
+        'guide.description': 'Browse your local Zotero library read-only; view PDFs in DSH’s native sidebar reader or fullscreen.',
         'status.checking': 'Checking the local library…',
         'status.ready': 'Local library connected',
         'status.missing': 'Zotero database not found',
