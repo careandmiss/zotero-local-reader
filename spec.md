@@ -109,9 +109,9 @@ Approved by the user on 2026-11-15 after clarifying that the PDF must occupy the
 
 ## Approved Reader Amendment — sidebar tab plus fullscreen
 
-Approved by the user on 2026-11-15 after providing screenshots and clarifying that the PDF must open in the side panel and also be viewable full-screen. This adds a side-reading mode while keeping the immersive main-panel reader above as an alternative.
+Approved by the user on 2026-11-15 after providing screenshots and clarifying that the PDF must open in the side panel and also be viewable full-screen. The user chose to retain DSH's native right sidebar when informed of its session-scope constraint.
 
-- The two-pane library remains in the main panel. Opening a paper from its list opens a per-item PDF resource tab in DSH's right sidebar and leaves the library/filter state visible behind it.
-- The side tab renders the same local, read-only PDF at the available panel size. The DSH rightbar's built-in `fullscreen` presentation expands that same tab to cover the window; do not close the rightbar automatically in side-reading mode.
-- The dedicated main-panel immersive reader remains available through the metadata preview's “Read PDF in main workspace” action; that route may close the rightbar to maximize the PDF canvas and keeps its floating return-to-library control.
-- The metadata quick-preview tab remains separate. Resource addresses contain the Zotero item key only, never an attachment path; PDF streaming continues through the existing key-based API and storage containment.
+- The two-pane library remains in the root-scoped `main` panel. DSH documents that `ctx.sidebarRight.openResource()` requires an on-screen Session, but a global `main` panel fills the main column without a mounted Session; therefore the main-library row action continues to open the approved immersive main-panel reader rather than calling `openResource()`.
+- The compact metadata-preview tab is rendered within a Session-bound rightbar. Add an explicit “Open PDF in sidebar” action there; it opens a per-item resource tab through `ctx.sidebarRight.openResource()` while the metadata-preview tab remains separate.
+- The resource tab renders the same local, read-only PDF at the available panel size. The DSH rightbar's built-in `fullscreen` presentation expands that same tab to cover the window; side-reading mode does not close the rightbar.
+- The metadata quick-preview tab also retains the “Read PDF in main workspace” action; that route may close the rightbar to maximize the immersive PDF canvas and keeps its floating return-to-library control. Resource addresses contain the Zotero item key only, never an attachment path; PDF streaming continues through the existing key-based API and storage containment.

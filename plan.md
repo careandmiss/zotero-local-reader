@@ -196,14 +196,14 @@
 
 ## 后续批准修订：侧栏阅读与全屏 — 2026-11-15
 
-用户在补充截图后明确要求“可以侧边这样打开，同时也可以全屏看文件”。在已批准的沉浸式主面板阅读器基础上，增加 DSH 右侧栏 PDF resource tab 和宿主原生全屏呈现；侧读模式不得自动关闭 rightbar。
+用户明确要求“可以侧边这样打开，同时也可以全屏看文件”，并选择保留 DSH 原生 rightbar。技术复核确认全局 `main` 面板无活动 Session，不能从主文库调用 `sidebarRight.openResource()`；因此主列表仍进入沉浸主阅读器，侧栏 PDF resource tab 从会话级 metadata quick preview 发起。
 
 ### 实施与验收
 
 1. 保留 main-panel readerMode 的沉浸视图：隐藏插件 header/hint/metadata/tabs，PDF 铺满并保留浮动返回；仅在此模式关闭 rightbar。
-2. 新增按 item key 寻址的 DSH rightbar resource tab。主文库打开条目时调用 `ctx.sidebarRight.openResource()`，右侧栏显示对应 PDF，主文库和筛选状态留在背景；metadata quick preview 保持独立。
+2. 新增按 item key 寻址的 DSH rightbar resource tab，并在 Session-bound metadata quick preview 中提供“Open PDF in sidebar” action；主文库是 sessionless global `main` 面板，因此其条目仍打开沉浸主阅读器，不调用 `openResource()`。
 3. 右栏 PDF 填满当前 panel，用户可用宿主原生 `push` / `fullscreen` 控件在侧读和全屏之间切换；侧读时不自动关闭 rightbar，resource URI 不含文件路径。
 4. 保留 loading/error/no-PDF、只读 DB、同源 GET、key-based attachment lookup、`storage/` containment 和零新依赖。
-5. 更新 UX 文档并复审；重跑 27 项合成测试、四项 syntax、bundle、diff 检查；提交/推送后由用户在现有 GUI 验收双栏文库、侧栏 PDF、宿主全屏同一 PDF、主面板沉浸阅读和返回状态。
+5. 更新 UX 文档并复审；重跑 27 项合成测试、四项 syntax、bundle、diff 检查；提交/推送后由用户在现有 GUI 验收主列表沉浸阅读、Session-bound metadata preview → 侧栏 PDF → 宿主全屏同一 PDF、以及主面板返回状态。
 
 此修订已获用户确认；侧栏 resource tab 的实现与 GUI 验收仍待完成。
