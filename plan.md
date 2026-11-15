@@ -207,3 +207,22 @@
 5. 更新 UX 文档并复审；重跑 27 项合成测试、四项 syntax、bundle、diff 检查；提交/推送后由用户在现有 GUI 验收主列表沉浸阅读，以及 Session-bound metadata preview → DSH 原生 PDF canvas 侧栏 tab → 宿主全屏同一 tab；确认 Zotero path 不显示。
 
 此修订已获用户确认并以设计提交 `3cf68a3` 记录。native PDF body slot 组合已实现并于 `0566b06` 提交、推送，入口标题与“更多”导航提示在 `bb87ac8` 中改进；27 项合成测试、四项语法检查、bundle 与 diff 检查通过，API/UX 复审确认无剩余 blocker（source-only，未做 live GUI 验证）。先前 iframe resource-tab 版本已被取代且未部署。用户已授权更新；当前 active profile 的 bundle 已启用并链接到此工作区，`install_bundle` 因 `already-installed` 且 `changed:false` 未改 profile，所以没有移除/重装。运行时重载和侧栏/全屏 GUI 验收仍需用户重启/刷新当前应用后完成。
+
+## UI 入口诊断更新：右侧开始页引导卡（2026-11-15）
+
+### 新截图与用户确认
+
+- 用户提供的最新截图是 DSH 右侧栏开始页：可见「工作区文件」「Zotero 文献库」「新建终端」「浏览器」与「更多工具」卡片。用户明确接受为本地阅读器提供一个同样可点击的右侧入口卡。
+- 用户先前左栏截图及展开的左栏“更多”菜单证明当前没有 `Zotero 本地阅读器` 的 sidebar panel launcher；这不是单纯把 launcher 默认收在“更多”。Plugin Manager `enabled/active` 只证明 Host row。
+
+### 源码核对及实现范围
+
+- 当前插件 `client.js:1181-1192` 已调用 `ctx.sidebarRightTabs.register()`，注册 `id/kind=zotero-local-reader` 及 localized guide entry，预期在右栏开始页显示「Zotero 本地阅读器」卡；同一模块还注册 keyed `main` 和 `sidebar.panellist`。
+- DSH 右栏 API 由 `packages/client/ui-sidebar-right/README.zh.md:118-129` 定义：guide entries 生成开始页卡片；被收起的 entry 可在「更多工具」中打开；点击 card 会打开对应 tab kind。
+- 已安装的 `dsh-plugin-zotero/client/client.js:39707-39718` 使用同一 `sidebarRightTabs.register(... guide ...)` 模式生成「Zotero 文献库」卡。故当前无须另造 HTML/按钮：先让用户点截图中的右侧「更多工具」查找本地卡。若该卡也缺失，沿 DSH「设置」底部 →「内置插件」→「插件列表」检查 Client 同步失败/Retry；错误未知时不改插件代码、不切换或重装 Host bundle。
+
+### 本次验收条件与下一步
+
+1. 用户点击右侧开始页「更多工具」，确认是否有「Zotero 本地阅读器」卡；若有则点击，验证本地文库面板打开。
+2. 若没有，用户在「内置插件 → 插件列表」提供 Client 同步错误或 Retry 结果，之后再确定代码/运行时修复。
+3. 本地卡、左侧入口及 PDF 原生侧栏/全屏均需在现有 GUI 验收；未验证前不得宣称交付完成。已有 27 项合成测试与语法/bundle 检查对应的代码未因本次设计说明而改变。
