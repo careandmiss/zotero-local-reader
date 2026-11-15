@@ -155,3 +155,34 @@
 - 标题/作者/日期点击只改变白名单 sort/direction；原有最近添加/分页/筛选功能保持。
 - Info/PDF 标签只显示已有功能，PDF 仍由同源 route 和 storage containment 保证；compact 右侧栏不回归。
 - 25 个既有合成测试、四项 `node --check`、bundle 检查、`git diff --check` 通过；新 Client 视觉仍需用户在已重启 DSH 的认证 GUI 中验收。若用户提供脱敏截图，再作精确间距/颜色对比。
+
+## UX 修正：按用户截图改为双栏文库 + 全宽阅读（2026-11-15）
+
+### 证据与诊断
+
+- 用户截图一是文库列表页：左侧集合/标签筛选，右侧条目列表；截图二是窄侧栏中的 PDF 阅读器，页面面积不足，用户明确表示读论文不方便。
+- 只读检查当前已安装的 `dsh-plugin-zotero@0.8.1` Client 包：`ZoteroPane` 注释和实现（profile `node_modules/dsh-plugin-zotero/client/client.js` 39407–39664）是“左侧集合与标签、右侧列表”的双栏；单击选择、双击在其独立 item tab 打开文档。`ZoteroItemPane`/`ItemDetail`（37984–38135、37449–37698）以文档为主体，信息/目录作为浮层，并通过 `sidebar.right.pane.tab` 注册（39672–39797）。此包只读检查，不修改。
+- 本项目现行 `client.js` 828–835 是三栏（树/表/检查器），PDF 位于右侧详情窗格；与截图一不符，也会把阅读面积压窄。用户已批准按推荐方案替换。
+
+### 批准后的设计与范围
+
+1. **文库主视图**：改为双栏；左栏提供可折叠集合树和真实可操作的标签筛选/计数，右栏展示紧凑条目列表、搜索、排序、分页。集合改变时清除当前标签筛选；不保留空的第三个详情栏。
+2. **主工作区阅读模式**：从列表打开条目后切换到独立全宽文档视图，PDF 默认占据主阅读区域；顶部提供返回文库与“信息/PDF”切换，信息使用已有详情元数据。返回后保留集合、标签、搜索、排序、分页状态。
+3. **右侧栏**：保留快速预览入口，但不再把它作为全文阅读的主路径；从侧栏请求打开 PDF 时应转到主工作区的全宽阅读模式。保留同源 PDF route、attachment-key 绑定、`storage/` containment。
+4. **标签数据 API**：在现有只读查询层增加按集合范围列举标签/计数及单标签过滤；使用参数化 SQL、限制查询长度，不暴露文件路径或引入任意 SQL。不会写 Zotero DB。
+5. 保留 DSH theme tokens、locale、键盘/ARIA、响应式、GET-only/loopback/source checks、无新依赖；不复制其他插件 DOM/CSS，不增加编辑、同步或导入能力。
+
+### 实施顺序
+
+1. 修改 `src/zotero-db.js`：复用现有 `tags/itemTags` 表读取标签计数，并为 item-list 查询增加精确标签过滤；新增合成 DB 单测。
+2. 修改 `src/http.js` 与 HTTP tests：添加只读 `GET /tags`，校验 collection/query/tag 输入；保留已有 GET-only 和来源校验。
+3. 修改 `client.js`：建立左侧集合/标签栏 + 右侧列表；从列表进入全宽 reader，返回保持查询状态；compact 侧栏保留快速预览并把全文阅读导航到 main panel。
+4. 更新 `spec.md`、README、UI direction、build note、handoff；执行 UX 复审、全部 synthetic tests、四项语法检查、bundle 与 diff 检查；不自动改动 profile 配置。
+5. 提交/推送后由用户重启 DSH，在现有 GUI 用 synthetic fixture 核对：双栏库、标签筛选、全宽 PDF、返回保状态、右栏 quick preview。未得到截图/用户反馈前不宣称视觉验收通过。
+
+### 验收口径
+
+- 主文库只有两个主列；左侧可浏览集合并过滤标签，右侧列表密度与截图一相近，不出现第三栏详情/PDF。
+- 打开条目后，PDF 默认在主工作区宽屏展示；标题/返回/信息可达；PDF 不再在窄右栏中充当主阅读视图。
+- 集合/标签/查询/排序/分页任意组合过滤结果正确，返回文库后状态保持；右栏快速预览入口仍可用且全文阅读能转到主工作区。
+- 新增 DB/HTTP 测试覆盖标签列表计数、集合范围、精确过滤、无效/超长输入；原有 25 项安全与回归测试不退化；四项语法、bundle、diff 通过；GUI 验收由用户完成。

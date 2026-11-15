@@ -73,3 +73,26 @@
 - HTTP 测试：错误方法、跨站、未知 key、非法 sort/direction、路径穿越、Range、缺附件响应。
 - Bundle 检查：manifest/patch/locale/client 模块语法和导出完整。
 - 运行验证：合成 fixture 验证 API、PDF 路由与 Range。更新安装到当前 desktop profile、主面板/右侧栏实际渲染与响应式行为需通过现有认证 GUI 由用户验收；不启动替代服务器、不绕过认证，不读取真实论文内容。
+
+## Approved UI Amendment — two-pane library and full-width reader
+
+Approved by the user on 2026-11-15 after comparing two screenshots and inspecting the installed `dsh-plugin-zotero@0.8.1` Client source. This amendment supersedes Requirements 3–4 and the three-pane Main Workspace bullets above; all read-only, same-origin, DSH theme, and security requirements remain in force.
+
+### Revised functional requirements
+
+1. Main library mode is two-pane: left collection tree + functional tag filter/counts; right compact item list with search, safe sorting, and pagination. No permanently visible third details/PDF column.
+2. Opening an item from the main list transitions to a dedicated full-width reader mode within the `main` panel. PDF is the default reader content; title/back and a real Info/PDF switch remain accessible. Info shows the existing local metadata. Returning to the library restores collection, tag, query, sort, direction, page, and selection state.
+3. The right-sidebar tab remains a quick-preview path, not the primary full-paper reading surface. Invoking full reading from the sidebar navigates to the main panel reader; the PDF is not presented as the main reading experience in the narrow sidebar.
+4. Tags are obtained through a new same-origin, GET-only `/tags` endpoint returning tag name and item count, optionally scoped to a collection. Item-list requests may filter by one exact tag name. Query/tag values are length-bounded and parameterized; no user string is interpolated into SQL.
+
+### Revised interaction and visual design
+
+- Library left pane contains a collection tree and tag filter section; changing collection clears the current tag selection. Right pane contains a dense table/list and selected-row state.
+- Opening a paper switches to a full-width document-first view with a visible return action. `Info` and `PDF` are mutually exclusive reader views; the PDF iframe fills available main-panel width and height rather than occupying a third column.
+- The compact sidebar continues to support local search/quick metadata preview. A full-read action routes to the full-width main reader.
+- Use DSH theme tokens and locale service; do not copy the other plugin's DOM/CSS or add its write/sync/import features.
+
+### Additional verification
+
+- Synthetic DB/HTTP tests cover tag enumeration/counts, collection scoping, exact tag filtering, invalid/overlong tag input, plus existing read-only and request-origin guarantees.
+- Client source review covers two-pane rendering, full-width mode transitions, return-state preservation, keyboard access, compact sidebar routing, and responsive behavior. Visual acceptance still requires the user in the existing authenticated GUI after restart.
