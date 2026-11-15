@@ -33,6 +33,7 @@ test('serves only a Zotero-managed child PDF inline with bounded range support',
     const fullBody = await full.text()
     assert.equal(full.status, 200)
     assert.equal(full.headers.get('content-type'), 'application/pdf')
+    assert.equal(full.headers.get('content-length'), String(Buffer.byteLength(fullBody)))
     assert.equal(full.headers.get('content-disposition'), 'inline; filename="zotero-paper.pdf"')
     assert.equal(full.headers.get('accept-ranges'), 'bytes')
     assert.equal(full.headers.get('access-control-allow-origin'), null)

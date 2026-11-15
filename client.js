@@ -3,9 +3,18 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const h = React.createElement
-    const { useCallback, useEffect, useRef, useState } = React
+    const { useCallback, useEffect, useRef, useState, useSyncExternalStore } = React
     const NS = 'zotero-local-reader'
     const API = '/dsh-zotero-local/api'
+    const MAX_NATIVE_PDF_BYTES = 32 * 1024 * 1024
+    const READER_TAB_ID = 'zotero-local-reader-item'
+    const READER_RESOURCE_PREFIX = `dsh-resource://${READER_TAB_ID}/`
+    function itemKeyFromResourceAddress(address) {
+      if (typeof address !== 'string' || !address.startsWith(READER_RESOURCE_PREFIX)) return null
+      const encodedKey = address.slice(READER_RESOURCE_PREFIX.length)
+      if (!encodedKey || encodedKey.includes('/')) return null
+      try { return decodeURIComponent(encodedKey) } catch { return null }
+    }
     let pendingMainReaderRequest = null
     let mainReaderSequence = 0
     const mainReaderSubscribers = new Set()
@@ -40,14 +49,16 @@ window.__ModuleLoader__.load({
         'workspace.tagError': '标签加载失败，请重试。',
         'workspace.collapseTags': '折叠标签',
         'workspace.expandTags': '展开标签',
-        'workspace.selectItem': '选择一篇文献以查看详情',
         'action.openFullReader': '在主工作区阅读 PDF',
+        'action.openFullReaderShort': '全宽阅读',
+        'action.openSideReader': '在侧栏打开 PDF',
+        'readerTab.title': 'Zotero PDF 阅读器',
+        'reader.invalidAddress': '无效的 Zotero 文献地址。',
+        'reader.sidebarUnavailable': '请在活动的 DSH 会话中打开右侧 PDF 阅读器。',
         'action.backToLibrary': '返回文献库',
         'reader.emptyPdf': '这篇文献没有可在 Zotero 存储中读取的 PDF。',
         'workspace.sort': '排序依据',
         'workspace.sortDirection': '排序方向',
-        'workspace.infoTab': '信息',
-        'workspace.pdfTab': 'PDF',
         'sort.recent': '最近添加',
         'sort.title': '标题',
         'sort.date': '日期',
@@ -69,12 +80,11 @@ window.__ModuleLoader__.load({
         'item.noAbstract': 'Zotero 条目没有摘要。',
         'item.noPdf': '条目没有记录本地 PDF',
         'item.pdfAttached': '条目记录关联了 Zotero 存储中的 PDF',
-        'item.pdfHeading': '本地 PDF',
-        'item.pdfSelect': '选择 PDF 附件',
-        'item.pdfLabel': 'PDF 附件',
-        'item.pdfChecking': '正在检查附件…',
+        'item.pdfChecking': '正在读取 PDF 附件…',
         'item.pdfMissing': '本地 PDF 缺失、为空或不在 Zotero 存储目录中。',
         'item.pdfError': '无法检查或打开 PDF。请检查文库连接后重试。',
+        'item.pdfTooLarge': 'PDF 超过 32 MiB，侧栏原生阅读器无法完整载入。可改在主工作区阅读。',
+        'item.nativeViewerUnavailable': '未找到 DSH 原生 PDF 阅读器。请确认 Document Preview 插件已启用。',
         'item.pdfViewerTitle': '本地 PDF 阅读器',
         'action.retryDetail': '重试读取详情',
         'action.retryPdf': '重试检查 PDF',
@@ -120,14 +130,16 @@ window.__ModuleLoader__.load({
         'workspace.tagError': 'Could not load tags. Try again.',
         'workspace.collapseTags': 'Collapse tags',
         'workspace.expandTags': 'Expand tags',
-        'workspace.selectItem': 'Select an item to view its details',
         'action.openFullReader': 'Read PDF in main workspace',
+        'action.openFullReaderShort': 'Main reader',
+        'action.openSideReader': 'Open PDF in sidebar',
+        'readerTab.title': 'Zotero PDF reader',
+        'reader.invalidAddress': 'Invalid Zotero item address.',
+        'reader.sidebarUnavailable': 'Open the sidebar PDF reader from an active DSH session.',
         'action.backToLibrary': 'Back to library',
         'reader.emptyPdf': 'This item has no readable PDF in Zotero storage.',
         'workspace.sort': 'Sort by',
         'workspace.sortDirection': 'Sort direction',
-        'workspace.infoTab': 'Info',
-        'workspace.pdfTab': 'PDF',
         'sort.recent': 'Recently added',
         'sort.title': 'Title',
         'sort.date': 'Date',
@@ -149,12 +161,11 @@ window.__ModuleLoader__.load({
         'item.noAbstract': 'This Zotero item has no abstract.',
         'item.noPdf': 'No local PDF is recorded for this item',
         'item.pdfAttached': 'A PDF attachment is recorded in Zotero storage',
-        'item.pdfHeading': 'Local PDF',
-        'item.pdfSelect': 'Choose a PDF attachment',
-        'item.pdfLabel': 'PDF attachment',
-        'item.pdfChecking': 'Checking attachment…',
+        'item.pdfChecking': 'Loading the PDF attachment…',
         'item.pdfMissing': 'The local PDF is missing, empty, or outside Zotero storage.',
         'item.pdfError': 'Could not check or open the PDF. Check the library connection and retry.',
+        'item.pdfTooLarge': 'This PDF exceeds 32 MiB and cannot be fully loaded in the sidebar viewer. Open it in the main workspace instead.',
+        'item.nativeViewerUnavailable': 'The DSH native PDF viewer is unavailable. Check that the Document Preview plugin is enabled.',
         'item.pdfViewerTitle': 'Local PDF reader',
         'action.retryDetail': 'Retry item details',
         'action.retryPdf': 'Retry PDF check',
@@ -256,17 +267,10 @@ window.__ModuleLoader__.load({
       .zlr-collection-name > svg { flex: 0 0 auto; color: var(--dsw-alias-label-tertiary); }
       .zlr-collection-disclosure { box-sizing: border-box; display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm, 4px); background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; font: inherit; font-size: 14px; }
       .zlr-collection-disclosure:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
-      .zlr-detail-view { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; }
-      .zlr-detail-tabs { display: flex; align-items: flex-end; gap: 18px; flex: 0 0 auto; padding: 0 14px; border-bottom: .5px solid var(--dsw-alias-border-l2); }
-      .zlr-reader-topline { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: .5px solid var(--dsw-alias-border-l3); }
-      .zlr-reader-body { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
-      .zlr-reader-info { flex: 1; min-width: 0; overflow: auto; padding: 16px 22px; }
-      .zlr-reader-pdf { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; padding: 8px 10px 10px; }
-      .zlr-reader-pdf .zlr-pdf-view { flex: 1; min-height: 0; }
-      .zlr-detail-tab { position: relative; padding: 7px 1px 8px; border: 0; background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; font: inherit; font-size: 12px; }
-      .zlr-detail-tab[aria-pressed='true'] { color: var(--dsw-alias-label-primary); }
-      .zlr-detail-tab[aria-pressed='true']::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--dsw-alias-label-primary); content: ''; }
-      .zlr-detail-tab:focus-visible { outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
+      .zlr-immersive-reader { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; background: var(--dsw-alias-bg-layer-1); }
+      .zlr-immersive-reader .zlr-pdf-view { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; gap: 0; }
+      .zlr-reader-back-overlay:focus-visible { outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
+      .zlr-reader-state { margin: auto; max-width: 480px; padding: 24px; color: var(--dsw-alias-label-secondary); text-align: center; font-size: 13px; line-height: 1.5; }
       .zlr-pdf-view { display: flex; flex-direction: column; gap: 8px; }
       @media (max-width: 1180px) {
         .zlr-library-grid { grid-template-columns: minmax(180px, 230px) minmax(0, 1fr); }
@@ -315,7 +319,183 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function Panel({ t, wide = false, onBack, onOpenInMain }) {
+    function ReaderResourceTitle({ t, useTabInfo }) {
+      const info = useTabInfo()
+      const title = info.tab.navigation?.params?.title
+      const label = typeof title === 'string' && title.trim() ? title : t('readerTab.title')
+      return h('span', { title: label, style: { display: 'block', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, label)
+    }
+
+    function nativePdfRendererIdOf(registry) {
+      if (!registry || typeof registry.getSnapshot !== 'function') return null
+      const definitions = registry.getSnapshot()
+      const pdf = definitions.find((definition) => definition.priority === 'builtin'
+        && definition.loading === 'bytes-complete'
+        && definition.extensions?.some((extension) => String(extension).toLowerCase() === 'pdf'))
+      return typeof pdf?.id === 'string' ? pdf.id : null
+    }
+
+    function ReaderResourcePane({ t, useTabInfo, renderSlot, documentPreviews, onOpenInMain }) {
+      const info = useTabInfo()
+      const itemKey = itemKeyFromResourceAddress(info.tab.navigation?.address || info.tab.contentId || '')
+      const pdfBodyId = useSyncExternalStore(documentPreviews.subscribe,
+        () => nativePdfRendererIdOf(documentPreviews), () => null)
+      const [details, setDetails] = useState(null)
+      const [loading, setLoading] = useState(true)
+      const [loadError, setLoadError] = useState(false)
+      const [retry, setRetry] = useState(0)
+      const [selectedPdfKey, setSelectedPdfKey] = useState('')
+      const [pdfStatus, setPdfStatus] = useState('idle')
+      const [pdfData, setPdfData] = useState(null)
+      const pdfAbort = useRef(null)
+      const noResources = () => {}
+      const noScrollport = useCallback(() => {}, [])
+
+      const verifyPdf = useCallback(async (attachmentKey) => {
+        pdfAbort.current?.abort()
+        setPdfData(null)
+        if (!itemKey || !attachmentKey) {
+          setSelectedPdfKey('')
+          setPdfStatus('idle')
+          return
+        }
+        const controller = new AbortController()
+        pdfAbort.current = controller
+        setSelectedPdfKey(attachmentKey)
+        setPdfStatus('checking')
+        try {
+          const response = await fetch(`${API}/file/${encodeURIComponent(itemKey)}/${encodeURIComponent(attachmentKey)}`, {
+            cache: 'no-store', headers: { accept: 'application/pdf' }, signal: controller.signal,
+          })
+          const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase()
+          if (response.status === 200 && contentType === 'application/pdf') {
+            const length = Number(response.headers.get('content-length'))
+            if (!Number.isSafeInteger(length) || length < 1) {
+              await response.body?.cancel().catch(() => {})
+              if (!controller.signal.aborted) setPdfStatus('error')
+              return
+            }
+            if (length > MAX_NATIVE_PDF_BYTES) {
+              await response.body?.cancel().catch(() => {})
+              if (!controller.signal.aborted) setPdfStatus('tooLarge')
+              return
+            }
+            const data = new Uint8Array(await response.arrayBuffer())
+            if (controller.signal.aborted) return
+            if (data.byteLength === 0) {
+              setPdfStatus('missing')
+            } else if (data.byteLength > MAX_NATIVE_PDF_BYTES) {
+              setPdfStatus('tooLarge')
+            } else {
+              setPdfData(data)
+              setPdfStatus('ready')
+            }
+            return
+          }
+          let errorCode = ''
+          try {
+            const result = await response.json()
+            errorCode = result?.error?.code ?? ''
+          } catch {
+            await response.body?.cancel().catch(() => {})
+          }
+          if (controller.signal.aborted) return
+          setPdfStatus(['pdf_missing', 'pdf_not_found', 'pdf_path_rejected', 'pdf_empty'].includes(errorCode) ? 'missing' : 'error')
+        } catch (error) {
+          if (error?.name !== 'AbortError' && !controller.signal.aborted) setPdfStatus('error')
+        }
+      }, [itemKey])
+
+      useEffect(() => {
+        if (!itemKey) {
+          setDetails(null)
+          setLoading(false)
+          setLoadError(true)
+          return undefined
+        }
+        const controller = new AbortController()
+        const tabSignal = info.tab.signal
+        const abortFromTab = () => controller.abort()
+        tabSignal?.addEventListener('abort', abortFromTab, { once: true })
+        setLoading(true)
+        setLoadError(false)
+        setDetails(null)
+        setSelectedPdfKey('')
+        setPdfStatus('idle')
+        setPdfData(null)
+        pdfAbort.current?.abort()
+        void fetch(`${API}/items/${encodeURIComponent(itemKey)}`, { cache: 'no-store', signal: controller.signal })
+          .then(async (response) => {
+            const result = await response.json()
+            if (!result.ok) throw new Error(result.error?.message ?? 'Item details are unavailable.')
+            if (!controller.signal.aborted) setDetails(result.data)
+          })
+          .catch((error) => {
+            if (error?.name !== 'AbortError' && !controller.signal.aborted) setLoadError(true)
+          })
+          .finally(() => {
+            if (!controller.signal.aborted) setLoading(false)
+          })
+        return () => {
+          controller.abort()
+          tabSignal?.removeEventListener('abort', abortFromTab)
+          pdfAbort.current?.abort()
+        }
+      }, [itemKey, retry, info.tab.signal])
+
+      useEffect(() => {
+        const firstPdf = details?.pdfAttachments?.[0]?.key ?? ''
+        void verifyPdf(firstPdf)
+        return () => pdfAbort.current?.abort()
+      }, [details, verifyPdf])
+
+      const rootStyle = { display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minWidth: 0, minHeight: 0, overflow: 'hidden', background: 'var(--dsw-alias-bg-layer-1, transparent)', color: 'var(--dsw-alias-label-primary, CanvasText)', font: 'inherit' }
+      const statusStyle = { margin: 'auto', maxWidth: 480, padding: 24, color: 'var(--dsw-alias-label-secondary, GrayText)', textAlign: 'center', fontSize: 13, lineHeight: 1.5 }
+      const headerStyle = { display: 'flex', flex: '0 0 38px', alignItems: 'center', gap: 8, boxSizing: 'border-box', minWidth: 0, height: 38, padding: '0 10px 0 16px', borderBottom: '.5px solid var(--dsw-alias-border-l3)', color: 'var(--dsw-alias-label-primary, CanvasText)', fontSize: 12 }
+      const headingStyle = { minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }
+      const renderHeader = () => h('div', { style: headerStyle },
+        h('span', { style: headingStyle, title: details.title || t('item.untitled') }, details.title || t('item.untitled')),
+        h('span', { style: { flex: '0 0 auto', color: 'var(--dsw-alias-label-tertiary, GrayText)' } }, 'PDF'),
+        h('button', { type: 'button', 'aria-label': t('action.openFullReader'), title: t('action.openFullReader'), onClick: () => onOpenInMain?.(details), style: { ...buttonStyle, flex: '0 0 auto', padding: '5px 8px', fontSize: 11 } }, t('action.openFullReaderShort')),
+        h('button', { type: 'button', 'aria-label': t('action.retryPdf'), title: t('action.retryPdf'), onClick: () => void verifyPdf(selectedPdfKey), style: { ...buttonStyle, flex: '0 0 auto', padding: '5px 8px', fontSize: 11 } }, t('action.retryPdf')),
+      )
+      if (loading || (details && details.key !== itemKey)) return h('div', { style: rootStyle }, h('div', { role: 'status', style: statusStyle }, t('item.loading')))
+      if (loadError || !details) return h('div', { style: rootStyle }, h('div', { role: 'alert', style: statusStyle },
+        h('div', null, itemKey ? t('item.detailError') : t('reader.invalidAddress')),
+        itemKey ? h('button', { type: 'button', onClick: () => setRetry((value) => value + 1), style: { ...buttonStyle, marginTop: 10 } }, t('action.retryDetail')) : null,
+      ))
+      if (!details.pdfAttachments?.length) return h('div', { style: rootStyle }, h('div', { role: 'status', style: statusStyle }, details.hasPdfAttachment ? t('item.pdfMissing') : t('item.noPdf')))
+      if (pdfStatus === 'checking' || pdfStatus === 'idle') return h('div', { style: rootStyle },
+        renderHeader(), h('div', { role: 'status', style: statusStyle }, t('item.pdfChecking')))
+      if (pdfStatus === 'missing' || pdfStatus === 'error') return h('div', { style: rootStyle },
+        renderHeader(), h('div', { role: 'alert', style: statusStyle },
+          h('div', null, pdfStatus === 'missing' ? t('item.pdfMissing') : t('item.pdfError')),
+          h('button', { type: 'button', onClick: () => void verifyPdf(selectedPdfKey), style: { ...buttonStyle, marginTop: 10 } }, t('action.retryPdf')),
+        ))
+      if (pdfStatus === 'tooLarge') return h('div', { style: rootStyle }, renderHeader(),
+        h('div', { role: 'alert', style: statusStyle }, t('item.pdfTooLarge')))
+      if (!pdfData) return h('div', { style: rootStyle }, renderHeader(),
+        h('div', { role: 'alert', style: statusStyle }, t('item.nativeViewerUnavailable')))
+      const resourceAddress = info.tab.navigation?.address || info.tab.contentId || `${READER_RESOURCE_PREFIX}${encodeURIComponent(itemKey)}`
+      const viewer = pdfBodyId && typeof renderSlot === 'function'
+        ? renderSlot('sidebar.right.tab.document', {
+          resourceAddress,
+          content: { kind: 'bytes', data: pdfData },
+          wrap: false,
+          scrollportRef: noScrollport,
+          addResource: noResources,
+          setResources: noResources,
+        }, {
+          entryKey: pdfBodyId,
+          hookContext: useTabInfo,
+          fallback: h('div', { role: 'alert', style: statusStyle }, t('item.nativeViewerUnavailable')),
+        })
+        : h('div', { role: 'alert', style: statusStyle }, t('item.nativeViewerUnavailable'))
+      return h('div', { style: rootStyle }, renderHeader(),
+        h('div', { style: { display: 'flex', flex: '1 1 auto', minWidth: 0, minHeight: 0, overflow: 'hidden' } }, viewer))
+    }
+
+    function Panel({ t, wide = false, onBack, onOpenInMain, onOpenInSidebar, onReaderOpen }) {
       const [state, setState] = useState({ kind: 'checking' })
       const [collections, setCollections] = useState([])
       const [tags, setTags] = useState([])
@@ -345,7 +525,7 @@ window.__ModuleLoader__.load({
       const [details, setDetails] = useState(null)
       const [detailLoading, setDetailLoading] = useState(false)
       const [detailError, setDetailError] = useState(false)
-      const [detailTab, setDetailTab] = useState('info')
+      const [sidebarOpenError, setSidebarOpenError] = useState(false)
       const detailAbort = useRef(null)
       const pdfAbort = useRef(null)
       const [selectedPdfKey, setSelectedPdfKey] = useState('')
@@ -510,7 +690,7 @@ window.__ModuleLoader__.load({
         }
       }, [wide, state.kind, listRevision, collectionKey, tagQuery, fetchTags])
 
-      const openItem = useCallback(async (item) => {
+      const loadItem = useCallback(async (item, fullReader = false) => {
         detailAbort.current?.abort()
         pdfAbort.current?.abort()
         setSelectedPdfKey('')
@@ -518,8 +698,8 @@ window.__ModuleLoader__.load({
         const controller = new AbortController()
         detailAbort.current = controller
         setSelectedItem(item)
-        setReaderMode(wide)
-        setDetailTab(wide ? 'pdf' : 'info')
+        setReaderMode(Boolean(wide && fullReader))
+        if (wide && fullReader) onReaderOpen?.()
         setDetails(null)
         setDetailError(false)
         setDetailLoading(true)
@@ -535,7 +715,11 @@ window.__ModuleLoader__.load({
         } finally {
           if (!controller.signal.aborted) setDetailLoading(false)
         }
-      }, [verifyPdf, wide])
+      }, [verifyPdf, wide, onReaderOpen])
+
+      const openItem = useCallback((item) => {
+        void loadItem(item, wide)
+      }, [wide, loadItem])
 
       useEffect(() => {
         if (!wide) return undefined
@@ -549,15 +733,14 @@ window.__ModuleLoader__.load({
         if (!wide || !mainReaderRequest || mainReaderRequest.id <= handledMainReaderRequest.current) return
         handledMainReaderRequest.current = mainReaderRequest.id
         if (pendingMainReaderRequest?.id === mainReaderRequest.id) pendingMainReaderRequest = null
-        void openItem(mainReaderRequest.item)
-      }, [wide, mainReaderRequest, openItem])
+        void loadItem(mainReaderRequest.item, true)
+      }, [wide, mainReaderRequest, loadItem])
 
       const closeItem = useCallback(() => {
         detailAbort.current?.abort()
         pdfAbort.current?.abort()
         setReaderMode(false)
         setSelectedItem(null)
-        setDetailTab('info')
         setDetails(null)
         setSelectedPdfKey('')
         setPdfStatus('idle')
@@ -566,12 +749,17 @@ window.__ModuleLoader__.load({
 
       const requestFullWidthReader = useCallback((item) => {
         if (wide) {
-          void openItem(item)
+          void loadItem(item, true)
           return
         }
         if (onOpenInMain) onOpenInMain(item)
-        else void openItem(item)
-      }, [wide, onOpenInMain, openItem])
+        else void loadItem(item, false)
+      }, [wide, onOpenInMain, loadItem])
+
+      const requestSidebarReader = useCallback((item) => {
+        setSidebarOpenError(false)
+        if (!onOpenInSidebar || onOpenInSidebar(item) === false) setSidebarOpenError(true)
+      }, [onOpenInSidebar])
 
       const resetList = () => {
         setItems([])
@@ -807,9 +995,8 @@ window.__ModuleLoader__.load({
           },
             h('td', null, h('button', {
               type: 'button', className: 'zlr-row-select', onClick: (event) => { event.stopPropagation(); void openItem(item) },
-              'aria-pressed': selectedItem?.key === item.key,
-              'aria-label': item.title || t('item.untitled'),
-              title: item.title || t('item.untitled'),
+              'aria-label': `${t('action.openFullReader')}: ${item.title || t('item.untitled')}`,
+              title: `${t('action.openFullReader')}: ${item.title || t('item.untitled')}`,
             }, item.title || t('item.untitled'))),
             h('td', null, item.authors.length ? item.authors.join(' · ') : t('item.authorUnknown')),
             h('td', null, item.date || '—'),
@@ -889,25 +1076,15 @@ window.__ModuleLoader__.load({
         ) : null,
       ) : null
       const pdfContent = details ? h('section', { className: wide ? 'zlr-pdf-view' : undefined, style: wide ? undefined : { display: 'flex', flexDirection: 'column', gap: 7 } },
-        h('h3', { style: { margin: '0 0 2px', fontSize: 12, fontWeight: 600, color: 'var(--dsw-alias-label-secondary, GrayText)' } }, t('item.pdfHeading')),
         details.pdfAttachments?.length ? h(React.Fragment, null,
-          details.pdfAttachments.length > 1 ? h('label', { style: { display: 'flex', flexDirection: 'column', gap: 5, fontSize: 12, color: 'var(--dsw-alias-label-secondary, GrayText)' } },
-            t('item.pdfSelect'),
-            h('select', {
-              value: selectedPdfKey,
-              onChange: (event) => void verifyPdf(details.key, event.target.value),
-              'aria-label': t('item.pdfSelect'),
-              style: panelFieldStyle,
-            }, details.pdfAttachments.map((attachment, index) => h('option', { key: attachment.key, value: attachment.key }, `${t('item.pdfLabel')} ${index + 1}${attachment.dateAdded ? ` · ${attachment.dateAdded.slice(0, 10)}` : ''}`))),
-          ) : null,
-          pdfStatus === 'checking' ? h('div', { role: 'status', style: { color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12 } }, t('item.pdfChecking')) : null,
-          pdfStatus === 'missing' ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-state-warn-primary, #b26a00)', fontSize: 12, lineHeight: 1.5 } },
+          pdfStatus === 'checking' ? h('div', { role: 'status', className: wide ? 'zlr-reader-state' : undefined, style: wide ? undefined : { color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12 } }, t('item.pdfChecking')) : null,
+          pdfStatus === 'missing' ? h('div', { role: 'alert', className: wide ? 'zlr-reader-state' : undefined, style: { ...(wide ? {} : { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }), color: 'var(--dsw-alias-state-warn-primary, #b26a00)', fontSize: 12, lineHeight: 1.5 } },
             h('span', null, t('item.pdfMissing')),
-            h('button', { type: 'button', onClick: () => void verifyPdf(details.key, selectedPdfKey), style: panelButtonStyle }, t('action.retryPdf')),
+            h('button', { type: 'button', onClick: () => void verifyPdf(details.key, selectedPdfKey), style: { ...panelButtonStyle, marginTop: wide ? 10 : 0 } }, t('action.retryPdf')),
           ) : null,
-          pdfStatus === 'error' ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 12, lineHeight: 1.5 } },
+          pdfStatus === 'error' ? h('div', { role: 'alert', className: wide ? 'zlr-reader-state' : undefined, style: { ...(wide ? {} : { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }), color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 12, lineHeight: 1.5 } },
             h('span', null, t('item.pdfError')),
-            h('button', { type: 'button', onClick: () => void verifyPdf(details.key, selectedPdfKey), style: panelButtonStyle }, t('action.retryPdf')),
+            h('button', { type: 'button', onClick: () => void verifyPdf(details.key, selectedPdfKey), style: { ...panelButtonStyle, marginTop: wide ? 10 : 0 } }, t('action.retryPdf')),
           ) : null,
           pdfStatus === 'ready' && selectedPdfKey ? h('iframe', {
             key: `${details.key}-${selectedPdfKey}`,
@@ -916,35 +1093,23 @@ window.__ModuleLoader__.load({
             loading: 'lazy',
             referrerPolicy: 'no-referrer',
             onError: () => setPdfStatus('error'),
-            style: { display: 'block', width: '100%', height: wide ? '100%' : '58vh', minHeight: wide ? 0 : 360, flex: wide ? '1 1 auto' : undefined, border: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: wide ? 4 : 8, background: 'var(--dsw-alias-bg-layer-1, transparent)' },
+            style: { display: 'block', width: '100%', height: wide ? '100%' : '58vh', minHeight: wide ? 0 : 360, flex: wide ? '1 1 auto' : undefined, border: wide ? 0 : '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: wide ? 0 : 8, background: 'var(--dsw-alias-bg-layer-1, transparent)' },
           }) : null,
-        ) : h('div', { style: { padding: 10, borderRadius: wide ? 4 : 8, background: 'var(--dsw-alias-bg-layer-2, rgba(128,128,128,.1))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5 } }, details.hasPdfAttachment ? t('item.pdfMissing') : t('item.noPdf')),
+        ) : h('div', { className: wide ? 'zlr-reader-state' : undefined, style: wide ? undefined : { padding: 10, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(128,128,128,.1))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5 } }, details.hasPdfAttachment ? t('item.pdfMissing') : t('item.noPdf')),
       ) : null
       const detailView = wide
-        ? h('article', { className: 'zlr-detail-view' },
-          h('div', { className: 'zlr-reader-topline' },
-            h('button', { type: 'button', onClick: () => setReaderMode(false), style: panelButtonStyle }, `‹ ${t('action.backToLibrary')}`),
-            h('div', { style: { minWidth: 0, flex: 1 } },
-              h('div', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 650 } }, details?.title || selectedItem?.title || t('item.untitled')),
-              h('div', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2, color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11 } }, (details?.authors?.length ? details.authors : selectedItem?.authors ?? []).join(' · ') || t('item.authorUnknown')),
-            ),
-          ),
-          detailLoading ? h('div', { role: 'status', style: { padding: 12, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12 } }, t('item.loading')) : null,
-          detailError ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 12, color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 12 } },
-            h('span', null, t('item.detailError')),
-            selectedItem ? h('button', { type: 'button', onClick: () => void openItem(selectedItem), style: panelButtonStyle }, t('action.retryDetail')) : null,
+        ? h('section', { className: 'zlr-immersive-reader', 'aria-label': t('item.pdfViewerTitle') },
+          h('button', {
+            type: 'button', className: 'zlr-reader-back-overlay', onClick: () => setReaderMode(false),
+            'aria-label': t('action.backToLibrary'), title: t('action.backToLibrary'),
+            style: { ...panelButtonStyle, position: 'absolute', insetBlockStart: 10, insetInlineStart: 10, zIndex: 2, minWidth: 32, minHeight: 32, padding: '4px 8px', background: 'var(--dsw-alias-bg-layer-1)' },
+          }, h('span', { 'aria-hidden': true, style: { fontSize: 20, lineHeight: 1 } }, '‹')),
+          detailLoading ? h('div', { role: 'status', className: 'zlr-reader-state' }, t('item.loading')) : null,
+          detailError ? h('div', { role: 'alert', className: 'zlr-reader-state' },
+            h('div', null, t('item.detailError')),
+            selectedItem ? h('button', { type: 'button', onClick: () => void openItem(selectedItem), style: { ...panelButtonStyle, marginTop: 10 } }, t('action.retryDetail')) : null,
           ) : null,
-          details ? h(React.Fragment, null,
-            h('div', { className: 'zlr-detail-tabs', role: 'group', 'aria-label': t('item.detail') },
-              h('button', { type: 'button', className: 'zlr-detail-tab', 'aria-pressed': detailTab === 'info', onClick: () => setDetailTab('info') }, t('workspace.infoTab')),
-              h('button', { type: 'button', className: 'zlr-detail-tab', 'aria-pressed': detailTab === 'pdf', onClick: () => setDetailTab('pdf') }, `${t('workspace.pdfTab')}${details.pdfAttachments?.length ? ` · ${details.pdfAttachments.length}` : ''}`),
-            ),
-            h('div', { className: 'zlr-reader-body', role: 'region', 'aria-label': detailTab === 'info' ? t('workspace.infoTab') : t('workspace.pdfTab') },
-              detailTab === 'info'
-                ? h('div', { className: 'zlr-reader-info' }, infoContent)
-                : h('div', { className: 'zlr-reader-pdf' }, pdfContent),
-            ),
-          ) : null,
+          details ? pdfContent : null,
         )
         : h(React.Fragment, null,
           h('button', { type: 'button', onClick: closeItem, style: { ...panelButtonStyle, alignSelf: 'flex-start' } }, `‹ ${t('action.back')}`),
@@ -954,10 +1119,18 @@ window.__ModuleLoader__.load({
             selectedItem ? h('button', { type: 'button', onClick: () => void openItem(selectedItem), style: panelButtonStyle }, t('action.retryDetail')) : null,
           ) : null,
           details ? h('article', { style: { display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 0 } },
-            detailHeader, infoContent,
-            details.pdfAttachments?.length ? h('button', { type: 'button', onClick: () => requestFullWidthReader(selectedItem), style: { ...panelButtonStyle, alignSelf: 'flex-start' } }, t('action.openFullReader')) : h('div', { style: { color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 12 } }, t('reader.emptyPdf')),
+            detailHeader,
+            details.pdfAttachments?.length ? h(React.Fragment, null,
+              h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
+                onOpenInSidebar ? h('button', { type: 'button', onClick: () => requestSidebarReader(selectedItem), style: panelButtonStyle }, t('action.openSideReader')) : null,
+                h('button', { type: 'button', onClick: () => requestFullWidthReader(selectedItem), style: panelButtonStyle }, t('action.openFullReader')),
+              ),
+              sidebarOpenError ? h('div', { role: 'alert', style: { color: 'var(--dsw-alias-state-warn-primary, #b26a00)', fontSize: 12, lineHeight: 1.5 } }, t('reader.sidebarUnavailable')) : null,
+            ) : h('div', { style: { color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 12 } }, t('reader.emptyPdf')),
+            infoContent,
           ) : null,
         )
+      const immersiveReader = wide && readerMode && Boolean(selectedItem)
 
       return h('section', {
         className: wide ? 'zlr-panel--wide' : undefined,
@@ -970,35 +1143,40 @@ window.__ModuleLoader__.load({
         },
       },
         wide ? h('style', null, workspaceCss) : null,
-        header,
+        immersiveReader ? null : header,
         wide ? null : statusIndicator,
-        hint ? h('div', {
+        !immersiveReader && hint ? h('div', {
           className: wide ? 'zlr-status-hint' : undefined,
           style: wide
             ? { margin: '8px 10px 0', padding: '7px 9px', borderRadius: 'var(--dsw-radius-sm, 4px)', border: '0.5px solid var(--dsw-alias-border-l3)', color: 'var(--dsw-alias-label-secondary)', fontSize: 11, lineHeight: 1.45 }
             : { padding: 10, borderRadius: 8, border: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 11, lineHeight: 1.5 },
         }, hint) : null,
-        state.kind === 'ready' ? wide
-          ? readerMode && selectedItem
+        wide
+          ? immersiveReader
             ? detailView
-            : h('div', { className: 'zlr-library-grid' },
+            : state.kind === 'ready' ? h('div', { className: 'zlr-library-grid' },
               collectionTree,
               h('section', { className: 'zlr-pane zlr-list-pane' }, listView),
-            )
-          : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0, flex: 1 } }, selectedItem ? detailView : listView)
-          : null,
+            ) : null
+          : state.kind === 'ready' ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0, flex: 1 } }, selectedItem ? detailView : listView) : null,
         h('footer', { style: { display: wide ? 'none' : undefined, marginTop: 'auto', paddingTop: 9, borderTop: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 10.5 } }, t('footer.local')),
       )
     }
 
     return {
-      inject: ['slots', 'locale', 'sidebarRightTabs', 'layout'],
+      inject: ['slots', 'locale', 'sidebarRightTabs', 'sidebarRight', 'layout', 'documentPreviews'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, dictionaries), 'zotero-local-reader: locale')
         const t = ctx.locale.bind(NS)
         const openInMain = (item) => {
           requestMainReader(item)
           ctx.layout.selectPanel('zotero-local-reader')
+        }
+        const openInSidebar = (item) => {
+          if (ctx.sidebarRight.mounted.getSnapshot() === undefined) return false
+          const address = `${READER_RESOURCE_PREFIX}${encodeURIComponent(item.key)}`
+          ctx.sidebarRight.openResource(address, { params: { title: item.title || t('item.untitled') } })
+          return true
         }
         ctx.effect(() => ctx.sidebarRightTabs.register({
           id: 'zotero-local-reader',
@@ -1012,15 +1190,42 @@ window.__ModuleLoader__.load({
             icon: ReaderIcon,
           }],
         }), 'zotero-local-reader: sidebar tab')
+        ctx.effect(() => ctx.sidebarRightTabs.register({
+          id: READER_TAB_ID,
+          kind: READER_TAB_ID,
+          title: () => t('readerTab.title'),
+          patterns: [`dsh-resource://${READER_TAB_ID}/**`],
+          priority: 'extension',
+          keepMounted: true,
+        }), 'zotero-local-reader: PDF resource tab')
         ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
           name: 'sidebar.right.pane.tab',
           key: 'zotero-local-reader',
-        }, () => h(Panel, { t, onOpenInMain: openInMain })))
+        }, () => h(Panel, { t, onOpenInMain: openInMain, onOpenInSidebar: openInSidebar })))
+        const ResourceBody = (props) => h(ReaderResourcePane, {
+          ...props, t, documentPreviews: ctx.documentPreviews, onOpenInMain: openInMain,
+        })
+        const ResourceTitle = (props) => h(ReaderResourceTitle, { ...props, t })
+        ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+          name: 'sidebar.right.pane.tab',
+          key: READER_TAB_ID,
+          children: {
+            'sidebar.right.tab.document': {
+              kind: 'keyed',
+              scope: 'session',
+              inject: { hooks: { tabInfo: (_standard, useTabInfo) => useTabInfo } },
+            },
+          },
+        }, ResourceBody))
+        ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
+          name: 'sidebar.right.pane.tab.title',
+          key: READER_TAB_ID,
+        }, ResourceTitle))
         ctx.slots.inject('main', () => ctx.slots.register({
           name: 'main',
           key: 'zotero-local-reader',
           locale: NS,
-          inject: () => ({ t, wide: true, onBack: () => ctx.layout.selectPanel(null) }),
+          inject: () => ({ t, wide: true, onBack: () => ctx.layout.selectPanel(null), onReaderOpen: () => ctx.layout.closeRightbar() }),
         }, Panel))
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
           name: 'sidebar.panellist',
