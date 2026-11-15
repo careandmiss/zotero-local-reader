@@ -8,3 +8,11 @@ node_modules/
 .env.*
 dist/
 build/
+# Never commit user Zotero libraries, SQLite journals, or paper PDFs.
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.pdf
+storage/
+data/
