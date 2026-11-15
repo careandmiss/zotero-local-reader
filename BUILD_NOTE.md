@@ -2,7 +2,7 @@
 
 ## Current stage
 
-Plan/Design approved by the user on 2026-11-15. F0–F3 are implemented and tested; F4 packaging, review, and release checks are next. Profile installation remains a separate deployment step.
+Plan/Design approved by the user on 2026-11-15. F0–F3 are implemented and tested; F4 packaging and review-driven fixes are implemented and synthetically verified, with the cross-model assumption sweep pending. Profile installation remains a separate deployment step.
 
 ## F0–F4 ladder
 
@@ -10,7 +10,7 @@ Plan/Design approved by the user on 2026-11-15. F0–F3 are implemented and test
 - F1 read-only SQLite + collections tree — implemented; synthetic DB/HTTP suite 8/8 passes; live profile verification pending.
 - F2 live item search/detail — implemented; 16/16 synthetic DB/HTTP tests pass; live profile verification pending.
 - F3 safe local PDF route + reader — implemented; 6/6 focused tests and 22/22 cumulative tests pass; native viewer rendering remains unverified without profile installation.
-- F4 resilience, accessibility, review, install verification — not started.
+- F4 resilience, accessibility, packaging, and reviews — implementation complete; 23/23 synthetic tests, syntax checks, bundle checks, and diff check pass. Cross-model assumption sweep remains; profile installation and live UI/PDF verification are deferred pending separate authorization.
 
 ## Reuse survey evidence
 

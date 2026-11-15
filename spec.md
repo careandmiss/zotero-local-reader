@@ -10,7 +10,7 @@
 ### Functional
 
 1. 在 DSH 右侧栏提供独立 Zotero 入口，不依赖 MCP 来绘制界面。
-2. 只读访问本机 Zotero SQLite：显示文库/集合树、条目列表和条目元数据；支持标题/作者/摘要搜索、分页与手动刷新。
+2. 只读访问本机 Zotero SQLite：展示集合路径筛选、条目列表和条目元数据；支持标题/作者/摘要搜索、分页与手动刷新。
 3. 打开条目后在 DSH 侧栏阅读本地 PDF 附件；从当前 Zotero 数据库解析附件 key，再从其对应的本地 `storage/<key>/` 提供文件。
 4. 每个列表、搜索、详情请求都读取当下 SQLite 状态；面板打开时提供低频刷新，保证新加/删除/改名条目能及时反映。数据库繁忙时明确提示并允许重试。
 5. 标准数据目录自动探测；非标准路径可在 DSH 插件设置中配置。
@@ -28,17 +28,17 @@
 ### 结构
 
 - **Host 插件**：通过 Cordis `webServer` 注册 `/dsh-zotero-local/api/*`；基于 Node 24 `node:sqlite` 只读连接本地数据库，提供健康检查、集合树、条目分页/搜索、条目详情、附件 PDF 流。
-- **Client 插件**：注册唯一 `sidebarRightTabs` id 和 `sidebar.right.pane.tab` 席位；React 组件展示「集合树 → 条目列表 → 阅读页」。通过 `fetch` 访问 Host API。PDF 首版使用 DSH Chromium 的内嵌 PDF 预览端点；若运行时不支持，则改用捆绑 PDF.js 的同一 Host 文件端点。
-- **数据路径**：配置 `dataDir` 优先；其次 `ZOTERO_DATA_DIR`；最后探测用户默认 `~/Zotero`。数据库默认为 `<dataDir>/zotero.sqlite`，附件仅限 `<dataDir>/storage/<attachment-key>/`。
+- **Client 插件**：注册唯一 `sidebarRightTabs` id 和 `sidebar.right.pane.tab` 席位；React 组件展示单栏集合路径筛选、条目列表、元数据与 PDF 阅读器。通过 `fetch` 访问 Host API。PDF 首版使用同源文件端点与 Chromium iframe；若授权的 live 验证证明 native viewer 不可用，再评估捆绑 PDF.js。
+- **数据路径**：配置 `dataDir` 优先；其次 `ZOTERO_DB_PATH`、`ZOTERO_DATA_DIR`；最后探测用户默认 `~/Zotero`。数据库默认为 `<dataDir>/zotero.sqlite`，附件仅限 `<dataDir>/storage/<attachment-key>/`。
 - **实时性**：每个 API 请求新开只读连接或确保读事务结束后可见下一次提交；无长期元数据缓存。面板处于可见状态时低频刷新，用户也可手动刷新。
 - **安全边界**：HTTP 只对 DSH Web Server 同源/回环提供服务；PDF 路由按 item/attachment key 查数据库后再流文件，不接受路径参数；支持 Range 请求以便 PDF 查看器分页读取。
 
 ### MVP 界面
 
-- 顶部状态/刷新区：显示库连接、数据源状态和最近刷新结果，不展示完整文件系统路径。
-- 左列：集合树与搜索。
-- 中列：条目标题、作者、年份和附件状态；搜索标题/作者/摘要；分页。
-- 阅读区：条目元数据与 PDF 预览；无 PDF 时给出“无本地 PDF 附件”状态。
+- 顶部状态/刷新区：显示库连接和刷新入口，不展示完整文件系统路径。
+- 单栏筛选区：标题/作者/摘要搜索与带层级路径的单选集合筛选；集合树保留于 Host 元数据，不常驻占用侧栏宽度。
+- 文献列表：标题、作者、年份和本地附件状态；支持分页。
+- 详情/阅读区：条目元数据、本地 PDF 附件选择和同源 PDF 预览；无本地文件、错误响应可重试。
 - 空库、未配置、数据库忙碌、缺附件、损坏文件、版本不兼容均有清晰提示。
 
 ## Standards applied
@@ -53,7 +53,7 @@
 - Zotero 同步或索引期间可能短暂锁库；有限等待后应返回可重试提示，绝不能切换成写连接。
 - Zotero 的 schema 会变化；SQLite 查询必须以 fixture 覆盖关键表，实际 Zotero 版本验证留到有条件时执行。
 - linked-file 附件可能在 storage 外；MVP 拒绝任意外部路径，避免 Host 任意文件读取。
-- DSH 本地页面上运行的 PDF `<iframe>` 是否支持 Chromium 内建 viewer 尚待安装后实测；若不支持，以 PDF.js 作为回退方案。
+- DSH 本地页面上的 PDF `<iframe>` 是否支持 Chromium 内建 viewer 尚待用户授权安装后实测；只有实测证明不可用时，才评估同源 PDF.js 回退方案。
 
 ## Open questions
 
@@ -65,4 +65,4 @@
 - 单元测试：内存/临时 SQLite fixture 覆盖集合、条目、搜索、分页、附件归属、坏路径、锁忙；断言只读数据库不能写入。
 - HTTP 测试：错误方法、跨站、未知 key、路径穿越、Range、缺附件响应。
 - Bundle 检查：manifest/patch/locale/client 模块语法和导出完整。
-- 运行验证：安装到当前 desktop profile 后检查插件状态 active、侧栏入口可见；使用不含真实论文的测试 fixture 验证 PDF 路由。真实文库验证只确认状态/功能，不把标题或正文写入日志/提交。
+- 运行验证：合成 fixture 验证 API、PDF 路由与 Range。安装到当前 desktop profile、真实 Zotero schema 检查和 Chromium 原生 viewer 渲染均需独立用户授权；本阶段未尝试且未读取真实论文内容。

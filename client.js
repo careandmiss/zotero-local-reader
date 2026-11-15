@@ -38,8 +38,12 @@ window.__ModuleLoader__.load({
         'item.pdfSelect': '选择 PDF 附件',
         'item.pdfLabel': 'PDF 附件',
         'item.pdfChecking': '正在检查附件…',
-        'item.pdfMissing': '本地 PDF 文件缺失或不在 Zotero 存储目录中。',
+        'item.pdfMissing': '本地 PDF 缺失、为空或不在 Zotero 存储目录中。',
+        'item.pdfError': '无法检查或打开 PDF。请检查文库连接后重试。',
         'item.pdfViewerTitle': '本地 PDF 阅读器',
+        'action.retryDetail': '重试读取详情',
+        'action.retryPdf': '重试检查 PDF',
+        'action.retryList': '重试加载文献',
         'item.countSuffix': '篇',
         'item.detail': '文献详情',
         'item.abstract': '摘要',
@@ -83,8 +87,12 @@ window.__ModuleLoader__.load({
         'item.pdfSelect': 'Choose a PDF attachment',
         'item.pdfLabel': 'PDF attachment',
         'item.pdfChecking': 'Checking attachment…',
-        'item.pdfMissing': 'The local PDF is missing or outside Zotero storage.',
+        'item.pdfMissing': 'The local PDF is missing, empty, or outside Zotero storage.',
+        'item.pdfError': 'Could not check or open the PDF. Check the library connection and retry.',
         'item.pdfViewerTitle': 'Local PDF reader',
+        'action.retryDetail': 'Retry item details',
+        'action.retryPdf': 'Retry PDF check',
+        'action.retryList': 'Retry paper list',
         'item.countSuffix': 'items',
         'item.detail': 'Item details',
         'item.abstract': 'Abstract',
@@ -142,6 +150,7 @@ window.__ModuleLoader__.load({
       const [checking, setChecking] = useState(false)
       const [loadingItems, setLoadingItems] = useState(false)
       const [listError, setListError] = useState('')
+      const [listRetryOptions, setListRetryOptions] = useState(null)
       const [listRevision, setListRevision] = useState(0)
       const [selectedItem, setSelectedItem] = useState(null)
       const [details, setDetails] = useState(null)
@@ -169,12 +178,22 @@ window.__ModuleLoader__.load({
             headers: { range: 'bytes=0-0' },
             signal: controller.signal,
           })
-          await response.body?.cancel().catch(() => {})
+          if (response.status === 206 && response.headers.get('content-type') === 'application/pdf') {
+            await response.body?.cancel().catch(() => {})
+            if (!controller.signal.aborted) setPdfStatus('ready')
+            return
+          }
+          let errorCode = ''
+          try {
+            const result = await response.json()
+            errorCode = result?.error?.code ?? ''
+          } catch {
+            await response.body?.cancel().catch(() => {})
+          }
           if (controller.signal.aborted) return
-          if (response.status === 206 && response.headers.get('content-type') === 'application/pdf') setPdfStatus('ready')
-          else setPdfStatus('missing')
+          setPdfStatus(['pdf_missing', 'pdf_not_found', 'pdf_path_rejected', 'pdf_empty'].includes(errorCode) ? 'missing' : 'error')
         } catch (error) {
-          if (error?.name !== 'AbortError') setPdfStatus('missing')
+          if (error?.name !== 'AbortError') setPdfStatus('error')
         }
       }, [])
 
@@ -182,6 +201,7 @@ window.__ModuleLoader__.load({
         const { signal, offset = 0, append = false } = options
         setLoadingItems(true)
         setListError('')
+        setListRetryOptions(null)
         try {
           const params = new URLSearchParams({ limit: '50', offset: String(offset) })
           if (currentQuery.trim()) params.set('q', currentQuery.trim())
@@ -200,7 +220,13 @@ window.__ModuleLoader__.load({
         } catch (error) {
           if (error?.name !== 'AbortError') {
             setListError(error?.code === 'database_busy' ? 'busy' : 'error')
-            if (!append) setItems([])
+            setListRetryOptions({ offset, append })
+            if (!append) {
+              setItems([])
+              setTotal(0)
+              setNextOffset(0)
+              setHasMore(false)
+            }
           }
         } finally {
           if (!signal?.aborted) setLoadingItems(false)
@@ -262,6 +288,9 @@ window.__ModuleLoader__.load({
 
       const openItem = useCallback(async (item) => {
         detailAbort.current?.abort()
+        pdfAbort.current?.abort()
+        setSelectedPdfKey('')
+        setPdfStatus('idle')
         const controller = new AbortController()
         detailAbort.current = controller
         setSelectedItem(item)
@@ -298,6 +327,7 @@ window.__ModuleLoader__.load({
         setNextOffset(0)
         setHasMore(false)
         setListError('')
+        setListRetryOptions(null)
       }
       const changeQuery = (value) => {
         closeItem()
@@ -352,7 +382,10 @@ window.__ModuleLoader__.load({
             collections.map((collection) => h('option', { key: collection.key, value: collection.key }, `${collection.path} · ${collection.itemCount}`)),
           ),
         ),
-        statusHint ? h('div', { role: 'alert', style: { color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5 } }, statusHint) : null,
+        statusHint ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12, lineHeight: 1.5 } },
+          h('span', null, statusHint),
+          h('button', { type: 'button', onClick: () => void fetchItems(query, collectionKey, listRetryOptions ?? {}), disabled: loadingItems, style: buttonStyle }, t('action.retryList')),
+        ) : null,
         h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 2 } },
           h('h2', { style: { margin: 0, fontSize: 12, letterSpacing: '.02em', fontWeight: 650 } }, t('item.detail')),
           h('span', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary, GrayText)' } }, `${total} ${t('item.countSuffix')}`),
@@ -370,13 +403,16 @@ window.__ModuleLoader__.load({
           ),
           h('span', { style: { display: 'block', marginTop: 5, color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 10 } }, item.hasPdfAttachment ? t('item.pdfAttached') : t('item.noPdf')),
         ))) : null,
-        hasMore ? h('button', { type: 'button', onClick: loadMore, disabled: loadingItems, style: { ...buttonStyle, alignSelf: 'center', marginTop: 4, opacity: loadingItems ? .6 : 1 } }, loadingItems ? t('item.loading') : t('action.loadMore')) : null,
+        hasMore ? h('button', { type: 'button', onClick: loadMore, disabled: loadingItems, style: { ...buttonStyle, alignSelf: 'center', marginTop: 4, opacity: loadingItems ? .6 : 1 } }, loadingItems ? t('item.loadingList') : t('action.loadMore')) : null,
       )
 
       const detailView = h(React.Fragment, null,
         h('button', { type: 'button', onClick: closeItem, style: { ...buttonStyle, alignSelf: 'flex-start' } }, `‹ ${t('action.back')}`),
         detailLoading ? h('div', { role: 'status', style: { padding: 16, color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 12 } }, t('item.loading')) : null,
-        detailError ? h('div', { role: 'alert', style: { color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 12 } }, t('item.detailError')) : null,
+        detailError ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 12 } },
+          h('span', null, t('item.detailError')),
+          selectedItem ? h('button', { type: 'button', onClick: () => void openItem(selectedItem), style: buttonStyle }, t('action.retryDetail')) : null,
+        ) : null,
         details ? h('article', { style: { display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 0 } },
           h('div', null,
             h('div', { style: { color: 'var(--dsw-alias-label-tertiary, GrayText)', textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 10, marginBottom: 6 } }, t('item.detail')),
@@ -413,14 +449,21 @@ window.__ModuleLoader__.load({
                 }, details.pdfAttachments.map((attachment, index) => h('option', { key: attachment.key, value: attachment.key }, `${t('item.pdfLabel')} ${index + 1}${attachment.dateAdded ? ` · ${attachment.dateAdded.slice(0, 10)}` : ''}`))),
               ) : null,
               pdfStatus === 'checking' ? h('div', { role: 'status', style: { color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 11 } }, t('item.pdfChecking')) : null,
-              pdfStatus === 'missing' ? h('div', { role: 'alert', style: { color: 'var(--dsw-alias-state-warn-primary, #b26a00)', fontSize: 11, lineHeight: 1.5 } }, t('item.pdfMissing')) : null,
+              pdfStatus === 'missing' ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-state-warn-primary, #b26a00)', fontSize: 11, lineHeight: 1.5 } },
+                h('span', null, t('item.pdfMissing')),
+                h('button', { type: 'button', onClick: () => void verifyPdf(details.key, selectedPdfKey), style: buttonStyle }, t('action.retryPdf')),
+              ) : null,
+              pdfStatus === 'error' ? h('div', { role: 'alert', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, color: 'var(--dsw-alias-state-error-primary, #b3261e)', fontSize: 11, lineHeight: 1.5 } },
+                h('span', null, t('item.pdfError')),
+                h('button', { type: 'button', onClick: () => void verifyPdf(details.key, selectedPdfKey), style: buttonStyle }, t('action.retryPdf')),
+              ) : null,
               pdfStatus === 'ready' && selectedPdfKey ? h('iframe', {
                 key: `${details.key}-${selectedPdfKey}`,
                 src: `${API}/file/${encodeURIComponent(details.key)}/${encodeURIComponent(selectedPdfKey)}`,
                 title: t('item.pdfViewerTitle'),
                 loading: 'lazy',
                 referrerPolicy: 'no-referrer',
-                onError: () => setPdfStatus('missing'),
+                onError: () => setPdfStatus('error'),
                 style: { display: 'block', width: '100%', height: '58vh', minHeight: 360, border: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-1, transparent)' },
               }) : null,
             ) : h('div', { style: { padding: 10, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(128,128,128,.1))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 11, lineHeight: 1.5 } }, details.hasPdfAttachment ? t('item.pdfMissing') : t('item.noPdf')),

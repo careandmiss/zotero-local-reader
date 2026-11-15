@@ -20,10 +20,12 @@
 | A-015 | The request does not specify whether multiple collections may be selected | One collection at a time via a single-select filter | interface | default |
 | A-016 | One Zotero item may have several local PDF attachments | Expose all Zotero-managed PDF attachment keys in item detail, ordered by newest attachment date first; let the user choose which to open | semantic | default |
 | A-017 | The browser may request only part of a PDF, and multi-range behavior is unspecified | Support one byte range per request; reject malformed and multi-range requests with 416 | interface | default |
+| A-018 | The request does not specify how a nested Zotero collection hierarchy should fit the narrow DSH sidebar | Preserve parent paths and counts in a single-select filter instead of a permanently expanded tree | interface | default |
 
 ## Notes
 
 - A-001/A-007 reflect the user's explicit latest clarification and subsequent approval of the local-only plan; they supersede any older Web API/API-key interpretation.
 - A-013 was noticed immediately after the first F2 query implementation; it is recorded before further UI work and explicitly flagged for the independent sweep because it did not precede that query code.
+- A-018 was noticed after the F1/F2 sidebar UI existed; it records the existing single-select filter choice and is included in the independent silent-assumption sweep because it did not precede that UI code.
 - A-003/A-005 define what “read” and “real time” mean in this build. Changing either changes the data-access semantics, so the implementation must preserve these rows.
 - The target repository was empty on GitHub when inspected; its URL is configured as `origin`. The user explicitly authorized normal pushes to this repository on 2026-11-15. Push only tested commits to `main`; do not force-push. No profile installation is authorized by that instruction.

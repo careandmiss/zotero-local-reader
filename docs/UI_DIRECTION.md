@@ -29,4 +29,4 @@ On selection: item metadata → inline PDF reader; Back returns to the same list
 
 ## Self-critique
 
-The subject warrants a paper-and-reader motif, but the sidebar itself should remain native to DSH rather than force a beige reading app onto the user's theme. The initial F0 panel is only a connection-state skeleton; its “next build step” placeholder must be removed when F2/F3 land. The proposed signature is concentrated in the icon and status treatment, not repeated as decoration in every row.
+The subject warrants a paper-and-reader motif, but the sidebar itself remains native to DSH rather than forcing a beige reading app onto the user's theme. F0–F3 now provide collection filtering, metadata, multiple local PDF attachments, and a same-origin inline reader. Synthetic HTTP tests cover the reader route; actual Chromium PDF rendering and light/dark slot display remain unverified until profile installation. The signature stays concentrated in the icon and status treatment rather than repeating as decoration in every row.

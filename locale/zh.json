@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Zotero 本地阅读器",
-    "description": "在 DSH 右侧栏“Zotero 本地库”搜索文献、查看元数据并阅读本机 PDF。直接只读本地 SQLite；只支持 Zotero 存储目录中的 PDF，不读取外部链接附件，不调用云 API。"
+    "description": "打开 DSH 右侧栏“Zotero 本地库”可按标题、作者或摘要搜索文献、查看详情并阅读本机 PDF。默认自动发现数据目录，也可在插件设置中配置 dataDir（包含 zotero.sqlite 的目录）。只读本地 SQLite，按需读取并每 15 秒刷新。仅支持 Zotero storage 中的 PDF；不读取外部链接附件、不搜索 PDF 全文，也不调用 Web API 或云服务。"
   }
 }

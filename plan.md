@@ -17,9 +17,9 @@
 - `index.js`：Host 插件入口、volatile Config、webServer 路由注册及生命周期清理。
 - `src/zotero-db.js`：路径探测、只读 SQLite 连接、集合/条目/附件查询。
 - `src/http.js`：同源/回环校验、JSON 信封、健康/集合/搜索/详情/PDF Range 路由。
-- `client.js`：DSH 侧栏 tab 和 React 组件（库树、列表、阅读器、空态/错误/加载态）。
+- `client.js`：DSH 侧栏 tab 和 React 组件（集合路径筛选、列表、详情、PDF 阅读器、空态/错误/加载态）。
 - `locale/zh.json`、`locale/en.json`：面板与插件元数据文案。
-- `docs/DETAIL.md`、`icon.svg`：安装说明、限制和 bundle 图标。
+- `icon.svg`：原创 bundle 图标；省略可选 detail 图片页。
 - `tests/*.test.js`：SQLite fixture、路由与只读/安全测试。
 - `README.md`：用户安装、配置数据目录、刷新与故障说明。
 - `AGENTS.md`、`ASSUMPTIONS.md`、`BUILD_NOTE.md`、`spec.md`、`plan.md`：项目决策与验证记录。
@@ -52,16 +52,16 @@
 ### F3 — 本地 PDF 安全流与阅读 UI
 
 1. 将条目 key 解析到本地 attachment item，再映射到 `<dataDir>/storage/<attachmentKey>/<filename>`；不接受文件系统路径参数。
-2. `path.resolve` 后验证仍在 `storage` 根目录下；只服务 PDF；设置正确 MIME、`nosniff`、`no-store`，支持 `Range/206` 与 `416`。
-3. Client 使用 DSH 同源 `/file/<itemKey>` 预览，在侧栏展示元数据、翻页/缩放由内嵌 PDF viewer 提供；没有 PDF 时显示原因。
-4. 验收：fixture PDF 的 full response 与 Range 字节正确；穿越、未知 key、linked external file、非 PDF 均拒绝。
+2. 从数据库 attachment key 构造候选路径，再用 `realpath` 验证文件仍在 canonical `storage` 根目录下；只服务 PDF；设置正确 MIME、`nosniff`、`no-store`，支持单个 `Range/206` 与无效范围 `416`。
+3. Client 使用 DSH 同源 `/file/<parentItemKey>/<attachmentKey>` 预览；详情列出所有本地 PDF，默认选最新附件，元数据与 PDF viewer 在同一窄栏；缺失/越界/错误状态可重试。
+4. 验收：fixture PDF 的 full response 与 Range 字节正确；穿越、symlink escape、错误归属 key、linked external file、缺失文件均拒绝或给安全错误。
 
 ### F4 — 错误恢复、体验与交付
 
 1. 完整 loading/empty/error/retry 状态，限制轮询并在组件卸载时清除计时器。
-2. zh/en locale、主题 token、键盘/ARIA 基础支持、icon/detail 文档。
-3. 运行 test、lint/语法、bundle 静态检查；安装到当前 DSH profile 后核对插件 active 和工具/侧栏状态，不读取或回显用户论文正文。
-4. 委托独立 UI/UX 与安全/bug review；修复有证据的问题后再报告。
+2. zh/en locale、主题 token、键盘/ARIA 基础支持、原创 icon 与 README fallback；不声明可选 detail 图片页。
+3. 运行全量 test、语法与 bundle 静态检查；profile 安装/active 状态、实际 Zotero schema 和 Chromium PDF 渲染属于单独部署验证，不在未获授权时执行。
+4. 委托独立 UI/UX、包元数据与安全 review；修复有证据的问题后再报告。
 5. 若安装过程报告需批准的构建脚本，则不批准、不运行该脚本；改为零构建脚本或报告阻塞。
 
 ## 风险与缓解
@@ -80,7 +80,7 @@
 
 - `node --test tests/*.test.js`：所有测试通过，覆盖 DB 与 HTTP 安全边界。
 - `node --check index.js && node --check client.js`：语法检查通过。
-- `node scripts/check-bundle.mjs`（如需要）：package exports、patch、locale、detail/icon 存在且一致。
+- `node scripts/check-bundle.mjs`：package exports、patch、locale、README fallback、icon 限制与 runtime 文件存在且一致。
 - DSH Plugin Manager：bundle 已安装；目标 row `enabled=true`, `fiberPhase=active`。
 - Web GUI：右侧栏出现 Zotero 本地阅读器，collections/items/PDF 可读；安装/页面更新方式按当前 dev watcher 状态判断。
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Read-only local Zotero library reader for the DSH sidebar. Browse local items and PDFs without keeping Zotero Desktop open; no Zotero Web API credentials or cloud service are used.",
+  "description": "Search local Zotero metadata and read Zotero-managed PDFs in a DSH sidebar using read-only SQLite; no Zotero Web API or cloud service is used.",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
@@ -16,7 +16,6 @@
     "src",
     "cordis.patch.yml",
     "locale/*.json",
-    "docs",
     "icon.svg",
     "README.md"
   ],

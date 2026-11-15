@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Zotero local reader",
-    "description": "Search Zotero items, view metadata, and read local PDFs in the “Zotero local library” sidebar tab. Reads local SQLite only; supports PDFs in Zotero storage, not linked external files. No cloud API is used."
+    "description": "Open the “Zotero local library” DSH sidebar tab to search by title, author, or abstract, inspect details, and read local PDFs. Uses standard data-directory discovery or set `dataDir` in plugin settings to the folder containing `zotero.sqlite`. Reads local SQLite on demand and refreshes every 15 seconds. Supports PDFs in Zotero storage only; no linked files, PDF full-text search, Web API, or cloud service."
   }
 }

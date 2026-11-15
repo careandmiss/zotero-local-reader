@@ -1,9 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Zotero local reader">
-  <rect x="8" y="8" width="112" height="112" rx="28" fill="#17252d"/>
-  <path d="M33 32c11-4 22-2 31 4v59c-9-6-20-8-31-4V32Z" fill="#f0eee7"/>
-  <path d="M95 32c-11-4-22-2-31 4v59c9-6 20-8 31-4V32Z" fill="#d8e7e2"/>
-  <path d="M43 47h12M43 58h12M43 69h12M73 47h12M73 58h12M73 69h12" stroke="#56766d" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="91" cy="89" r="19" fill="#d76545"/>
-  <path d="m105 103 11 11" stroke="#f0eee7" stroke-width="7" stroke-linecap="round"/>
-  <circle cx="91" cy="89" r="8" fill="none" stroke="#fff7eb" stroke-width="4"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" role="img" aria-label="Zotero local reader">
+  <g transform="translate(-2.86 -1.88) scale(0.28)">
+    <path d="M33 32c11-4 22-2 31 4v59c-9-6-20-8-31-4V32Z" fill="#f0eee7"/>
+    <path d="M95 32c-11-4-22-2-31 4v59c9-6 20-8 31-4V32Z" fill="#d8e7e2"/>
+    <path d="M43 47h12M43 58h12M43 69h12M73 47h12M73 58h12M73 69h12" stroke="#56766d" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="91" cy="89" r="19" fill="#d76545"/>
+    <path d="m105 103 11 11" stroke="#f0eee7" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="91" cy="89" r="8" fill="none" stroke="#fff7eb" stroke-width="4"/>
+  </g>
 </svg>

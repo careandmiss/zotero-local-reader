@@ -84,6 +84,21 @@ test('health endpoint rejects cross-site requests', async () => {
   })
 })
 
+test('accepts a matching loopback origin and rejects mismatched Origin or Host', () => {
+  assert.equal(isTrusted({
+    headers: { host: '127.0.0.1:13373', origin: 'http://127.0.0.1:13373', 'sec-fetch-site': 'same-origin' },
+    socket: { remoteAddress: '127.0.0.1' },
+  }), true)
+  assert.equal(isTrusted({
+    headers: { host: '127.0.0.1:13373', origin: 'http://localhost:13373', 'sec-fetch-site': 'same-origin' },
+    socket: { remoteAddress: '127.0.0.1' },
+  }), false)
+  assert.equal(isTrusted({
+    headers: { host: 'example.com:13373', origin: 'http://example.com:13373', 'sec-fetch-site': 'same-origin' },
+    socket: { remoteAddress: '127.0.0.1' },
+  }), false)
+})
+
 test('loopback Host spoofing from a remote peer is rejected', () => {
   assert.equal(isTrusted({
     headers: { host: '127.0.0.1:13373', 'sec-fetch-site': 'same-origin' },
