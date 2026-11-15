@@ -237,4 +237,10 @@
 
 1. 先新增 `tests/client-slot-registration.test.js` 回归检查并确认旧实现失败，再删除重复 child declaration；不改 Host route、安全策略或 PDF 数据流。将此槽声明规则记入 `AGENTS.md`。
 2. 已验证：`node --test tests/*.test.js` 28/28 通过（含回归项；旧实现先失败，删除重复声明后通过）；`node --check` 四个入口均通过；bundle check 与 `git diff --check` 通过。
-3. 提交/推送后，请用户在「内置插件 → 插件列表」点 **重试本页面**，确认同步错误消失、右侧「Zotero 本地阅读器」卡或左侧 panel launcher 出现；随后验收本地文库、原生侧栏 PDF 与全屏。未获 GUI 反馈前不宣称完成。
+3. 已完成 GUI 同步重试：用户确认错误消失且入口出现；文库与条目可见。当前会话右侧 Zotero 文献预览 →「在侧栏打开 PDF」仍对多个/所有 PDF 显示通用 `item.pdfError`，原生 viewer 尚未显示；继续查文件请求错误，不宣称 PDF 验收完成。
+
+## PDF 文件路由诊断（2026-11-15）
+
+用户确认失败发生在活动会话右侧 Zotero 文献预览 →「在侧栏打开 PDF」，文库/条目详情可见，只有 PDF 请求失败；多份/所有 PDF 都复现。该路径由 `ReaderResourcePane.verifyPdf()` 发 GET `/file/<parentKey>/<attachmentKey>`，当前从 JSON 只读取 `error.code` 用于分类 `missing` vs `error`，但界面丢弃代码并统一显示“无法检查或打开 PDF”。
+
+下一步：添加 localized、安全的诊断代码（仅白名单后端枚举或 `http_<status>` / `network_error`，不显示原始错误消息、路径或附件名），使用户能区分 `database_busy`、`pdf_read_failed`、网络/HTTP 异常；添加/更新客户端静态回归检查，运行全量 tests、syntax、bundle 与 diff 检查。推送后让用户重试本页面同步，再点「重试检查 PDF」报告诊断码；依据码修复文件路由，最后完成原生侧栏及全屏 GUI 验收。
