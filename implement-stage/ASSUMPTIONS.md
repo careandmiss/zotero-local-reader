@@ -26,6 +26,8 @@
 
 - A-001/A-007 reflect the user's explicit latest clarification and subsequent approval of the local-only plan; they supersede any older Web API/API-key interpretation.
 - A-013 was noticed immediately after the first F2 query implementation; it is recorded before further UI work and explicitly flagged for the independent sweep because it did not precede that query code.
-- A-018 was noticed after the F1/F2 sidebar UI existed; it records the existing single-select filter choice and is included in the independent silent-assumption sweep because it did not precede that UI code.
+- A-018 was noticed after the F1/F2 sidebar UI existed; it records the existing single-select filter choice. It was intended for independent silent-assumption review, but the Codex sweep did not read artifacts; this row therefore remains unverified by that review.
+- Cross-model sweep status: `SWEEP_UNAVAILABLE`. The Codex MCP call failed before reading any artifact because `codex-code-mode-host.exe` was missing and Desktop access was denied as unapproved. The returned `verdict: null` is not a clean result; see `SILENT_ASSUMPTION_SWEEP.json` and `.aris/traces/research-implement-feature/2026-11-15_run01/`.
+- The trace's name-based family classifier maps the caller-declared executor ID (`gpt-6-luna`) and requested reviewer ID (`gpt-6-astra`) to OpenAI; the executor identity is not host-attested, so different-family independence is not established.
 - A-003/A-005 define what “read” and “real time” mean in this build. Changing either changes the data-access semantics, so the implementation must preserve these rows.
 - The target repository was empty on GitHub when inspected; its URL is configured as `origin`. The user explicitly authorized normal pushes to this repository on 2026-11-15. Push only tested commits to `main`; do not force-push. No profile installation is authorized by that instruction.

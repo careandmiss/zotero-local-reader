@@ -6,7 +6,7 @@
 | F1 | Read-only SQLite connection, schema/health, collection tree and counts | `node --test tests/zotero-db.test.js tests/http.test.js` | MUST | ✅ passed |
 | F2 | Item list, detail metadata, search, pagination, and current-snapshot reads | `node --test tests/library.test.js tests/http.test.js tests/zotero-db.test.js` | MUST | ✅ passed |
 | F3 | Key-resolved local PDF route, path containment, Range responses, reader UI | `node --test tests/http-files.test.js` | MUST | ✅ passed |
-| F4 | Packaging/metadata/docs, review fixes, and cumulative verification | `node scripts/check-bundle.mjs` | MUST | in progress |
+| F4 | Packaging/metadata/docs, review fixes, and cumulative verification | `node scripts/check-bundle.mjs` | MUST | checks passed; cross-model sweep unavailable |
 
 ## Run record
 
@@ -15,7 +15,7 @@
 - F1: `node --test tests/zotero-db.test.js tests/http.test.js` → exit 0 (8/8); fixture verifies read-only SQLite, schema rejection, collection hierarchy/counts, and HTTP route; syntax/bundle checks also exit 0; fix attempts: 0.
 - F2: `node --test tests/library.test.js tests/http.test.js tests/zotero-db.test.js` → exit 0 (16/16); synthetic fixtures cover list/detail/search/filter/pagination/fresh reads and HTTP endpoints; syntax/bundle checks also exit 0; fix attempts: 0.
 - F3: `node --test tests/http-files.test.js` → exit 0 (6/6); all 22 cumulative tests, syntax checks, and bundle check pass; fixture verifies attachment-key binding, Range, traversal rejection, and realpath symlink containment; fix attempts: 1 (corrected test's expected 8-byte slice).
-- F4: `node --test tests/*.test.js` → exit 0 (23/23); all four entry syntax checks → exit 0; `node scripts/check-bundle.mjs` → exit 0 (icon 695 bytes); `git diff --check` → exit 0. UX review fixes cover PDF/detail/list retry, pagination preservation, and accurate loading/error states; security review found no implementation defect and prompted Origin/Host negative tests; packaging review prompted transparent 36x36 icon and export/asset guards. No F4 acceptance-check failure; profile/rendered UI remains unverified; cross-model sweep pending.
+- F4: `node --test tests/*.test.js` → exit 0 (23/23); all four entry syntax checks → exit 0; `node scripts/check-bundle.mjs` → exit 0 (icon 695 bytes); `git diff --check` → exit 0. UX review fixes cover PDF/detail/list retry, pagination preservation, and accurate loading/error states; security review found no implementation defect and prompted Origin/Host negative tests; packaging review prompted transparent 36x36 icon and export/asset guards. Codex silent-assumption sweep call failed before artifact access (`codex-code-mode-host.exe` missing; Desktop access denied), so status is `SWEEP_UNAVAILABLE`, not clean. Profile/rendered UI remains unverified.
 
 ## Deferred
 

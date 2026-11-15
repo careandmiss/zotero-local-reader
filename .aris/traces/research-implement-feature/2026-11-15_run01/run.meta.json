@@ -1,0 +1,17 @@
+{
+  "skill": "research-implement-feature",
+  "run_id": "2026-11-15_run01",
+  "started_at": "2026-11-15T05:20:44Z",
+  "executor": "deepseek-harness",
+  "executor_model": "gpt-6-luna",
+  "executor_model_source": "caller-declared",
+  "executor_family": "openai",
+  "reviewer_model_source": "requested",
+  "reviewer_family": "openai",
+  "reviewer_backend": "codex",
+  "native_evidence_id": null,
+  "native_evidence_path": null,
+  "family_relation": "same",
+  "independence_verified": false,
+  "project_dir": "/mnt/e/Code/\u8bba\u6587/\u521b\u65b0\u70b9\u6784\u601d/zotero-local-reader"
+}
