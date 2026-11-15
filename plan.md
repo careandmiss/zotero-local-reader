@@ -132,5 +132,5 @@
 
 - 不新增依赖，不改 profile 配置，不写真实 Zotero 数据；sort 参数必须经 enum 映射后才进入 SQL。
 - 若新的 panel 注册或布局失败，保留原 compact 右侧栏并回退本次 UI 变更；回退仅限插件仓库 bundle，不触碰 DSH profile 之外的数据。
-- **状态**：实现、文档、团队评审、静态验证与安装均已完成；用户已批准范围并完成 DSH slot/API 勘察。排序回归测试、服务端白名单排序、可折叠三栏主面板及保留的右侧栏入口已写入工作区；全量 25/25 合成测试、四项语法检查、bundle 检查与 diff 检查通过。API/DSH reviewers 无阻塞项；UX reviewer 的集合折叠、字号与隐藏筛选问题均已修复并确认。`plugin_manager install_bundle` 返回 `application=applied`，`zotero-local-reader` row 为 enabled/active；替换 package 需由用户重启 DSH 载入新 Client module generation，之后仍需现有 GUI synthetic 手工验收、最终提交与 push。未触碰真实 Zotero 数据。
+- **状态**：实现、文档、团队评审、静态验证、安装、提交与 push 均已完成；用户已批准范围并完成 DSH slot/API 勘察。排序回归测试、服务端白名单排序、可折叠三栏主面板及保留的右侧栏入口已提交至 `main`（`1dd2632`）；全量 25/25 合成测试、四项语法检查、bundle 检查与 diff 检查通过。API/DSH reviewers 无阻塞项；UX reviewer 的集合折叠、字号与隐藏筛选问题均已修复并确认。`plugin_manager install_bundle` 返回 `application=applied`，`zotero-local-reader` row 为 enabled/active；替换 package 需由用户重启 DSH 载入新 Client module generation，之后仍需现有 GUI synthetic 手工验收。未触碰真实 Zotero 数据。
 - **不卡死计数**：当前 UI 扩展实施失败 0 次；若同一步连续失败 2 次，先回需求/设计复判。
