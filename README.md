@@ -17,10 +17,10 @@
 
 ## 实现状态
 
-本地数据库读取、文献浏览与 PDF 路由功能已实现；合成测试、语法检查和 bundle 检查均通过。PDF HTTP 字节范围与存储路径限制已由合成测试验证。DSH profile 中的实际 Zotero 数据库读取、侧栏槽位展示和 Chromium 原生 PDF 渲染尚未验证，因为当前未安装插件。
+本地数据库读取、文献浏览与 PDF 路由功能已实现；合成测试、语法检查和 bundle 检查均通过。插件已安装到本地 DSH desktop profile，Plugin Manager 显示目标条目已启用且 active。未打开阅读器访问真实文库；实际文库读取、侧栏渲染和 Chromium 原生 PDF 显示仍未验证。
 
 ## English
 
 This DSH Host + Client bundle provides a right-sidebar reader for a local Zotero library. Add this repository through **Plugins > Add plugin**. Set `dataDir` in plugin settings to the folder containing `zotero.sqlite` when standard directory discovery does not find the library. Open **Zotero local library** in the right sidebar to search by title, author, or abstract, inspect item details, and read Zotero-managed local PDFs.
 
-The plugin reads SQLite in read-only mode, refreshes the panel every 15 seconds, and does not require Zotero Desktop to remain open. It supports PDFs below Zotero `storage/` only; linked external files, PDF full-text search, record editing, Zotero Web API, and cloud services are out of scope. Tests use temporary synthetic fixtures only. Live profile, real-library, and native-viewer rendering checks have not been performed.
+The plugin reads SQLite in read-only mode, refreshes the panel every 15 seconds, and does not require Zotero Desktop to remain open. It supports PDFs below Zotero `storage/` only; linked external files, PDF full-text search, record editing, Zotero Web API, and cloud services are out of scope. The bundle is installed and active in the local DSH desktop profile. Tests use temporary synthetic fixtures only; the reader panel, real-library access, and native-viewer rendering have not been exercised.

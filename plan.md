@@ -1,7 +1,7 @@
 # DSH 本地 Zotero 侧栏阅读器 — Build Plan
 
 - Derived from: `intent/intent.md` + `spec.md`
-- Status: Approved by user on 2026-11-15 — code phase authorized; profile installation remains a separate deployment gate
+- Status: Approved by user on 2026-11-15 — code phase authorized; profile installation was separately authorized in goal round 1 and applied to the desktop profile.
 - Date: 2026-11-15
 
 ## 本计划的结果定义
@@ -60,7 +60,7 @@
 
 1. 完整 loading/empty/error/retry 状态，限制轮询并在组件卸载时清除计时器。
 2. zh/en locale、主题 token、键盘/ARIA 基础支持、原创 icon 与 README fallback；不声明可选 detail 图片页。
-3. 运行全量 test、语法与 bundle 静态检查；profile 安装/active 状态、实际 Zotero schema 和 Chromium PDF 渲染属于单独部署验证，不在未获授权时执行。
+3. 运行全量 test、语法与 bundle 静态检查；profile 安装/active 状态已在单独授权后验证。实际 Zotero schema 与 Chromium PDF 渲染仍未验证；我们未手动打开阅读器 tab 或从验证脚本发出访问真实文库的认证请求，当前页面挂载状态无法检查。
 4. 委托独立 UI/UX、包元数据与安全 review；修复有证据的问题后再报告。
 5. 若安装过程报告需批准的构建脚本，则不批准、不运行该脚本；改为零构建脚本或报告阻塞。
 
