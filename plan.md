@@ -191,5 +191,5 @@
 
 - 两栏文库、标签筛选 API、全宽主工作区阅读模式、侧栏快速预览到主阅读器的导航及状态保持已实现；设计修订提交 `001908f` 已推送。
 - `node --test tests/*.test.js` 27/27；`index.js`、`client.js`、`src/zotero-db.js`、`src/http.js` 四项语法检查，`node scripts/check-bundle.mjs` 与 `git diff --check` 均通过。两个源码复审均无阻塞。
-- 当前 DSH GUI 尚未加载新 bundle；在既有安装授权范围内更新插件后，需用户重启现有 GUI 并验收双栏布局、标签过滤、侧栏到全宽阅读及返回状态。agent 无认证浏览器控制，未声称视觉验收通过。
+- 新 bundle 已在既有安装授权范围内应用到当前 DSH profile，`include:zotero-local-reader` 显示 enabled/active；仍需用户刷新/重启现有 GUI 并验收双栏布局、标签过滤、侧栏到全宽阅读及返回状态。agent 无认证浏览器控制，未声称视觉验收通过。
 - 所有测试仅用合成数据库/PDF；未读取真实 Zotero 数据。先前真实库读取错误仍未定位。

@@ -2,7 +2,7 @@
 
 ## Current stage
 
-Plan/Design approved by the user on 2026-11-15. After the user rejected the three-pane inspector and supplied two reference screenshots, the user approved an amendment: two-pane collection/tag + item list, full-width reader in the main panel, and a metadata-only right-sidebar quick preview that routes full reading to the main panel. The installed `dsh-plugin-zotero@0.8.1` source was inspected read-only to verify this interaction structure. Current source implements a parameterized read-only tag API/filter and the new layout. All 27 synthetic tests, four syntax checks, bundle check, and `git diff --check` pass; source UX and tag API reviewers found no blockers. The current DSH GUI has not loaded this update and no live visual verification is available; update the existing plugin and have the user restart the DSH process before acceptance. The Codex silent-assumption sweep remains unavailable; no clean cross-model verdict is claimed. The unreadable-database state for the real-library setting remains unresolved; all automated tests use synthetic data and the agent has not queried the real database.
+Plan/Design approved by the user on 2026-11-15. After the user rejected the three-pane inspector and supplied two reference screenshots, the user approved an amendment: two-pane collection/tag + item list, full-width reader in the main panel, and a metadata-only right-sidebar quick preview that routes full reading to the main panel. The installed `dsh-plugin-zotero@0.8.1` source was inspected read-only to verify this interaction structure. Current source implements a parameterized read-only tag API/filter and the new layout. All 27 synthetic tests, four syntax checks, bundle check, and `git diff --check` pass; source UX and tag API reviewers found no blockers. `plugin_manager.install_bundle` returned `application=applied`, and the plugin row is enabled/active; no live visual verification is available. Have the user refresh/restart the existing DSH GUI before acceptance. The Codex silent-assumption sweep remains unavailable; no clean cross-model verdict is claimed. The unreadable-database state for the real-library setting remains unresolved; all automated tests use synthetic data and the agent has not queried the real database.
 
 ## F0–F4 ladder
 
@@ -31,7 +31,7 @@ Plan/Design approved by the user on 2026-11-15. After the user rejected the thre
 - Source review: installed `dsh-plugin-zotero@0.8.1` `ZoteroPane` uses collection/tag navigation plus item list; item opening is separate from the library list. The screenshot's narrow PDF is a sidebar reader, so it should not be the main reading route. This package was inspected read-only.
 - User approved the two-pane main library + full-width main-panel reader + metadata-only sidebar quick preview. Plan/spec amendment was committed and pushed as `001908f` before source changes.
 - Current source now has `GET /tags` with collection-scoped counts, parameterized exact-tag filtering on `/items`, a two-pane collection/tag navigator + list, full-width PDF reader with PDF default, and a sidebar-to-main reader transition. Returning to the list retains its local filter/sort/page state.
-- Verification: `node --test tests/*.test.js` → 27/27; all four syntax checks, `node scripts/check-bundle.mjs`, and `git diff --check` pass. Source-only UX and tag API reviews found no blockers. Actual PDF sizing and sidebar → reader → return/filter-persistence checks remain for the user GUI; the current GUI has not loaded the bundle, so no live rendering is claimed.
+- Verification: `node --test tests/*.test.js` → 27/27; all four syntax checks, `node scripts/check-bundle.mjs`, and `git diff --check` pass. Source-only UX and tag API reviews found no blockers. Actual PDF sizing and sidebar → reader → return/filter-persistence checks remain for the user GUI. `plugin_manager.install_bundle` returned `application=applied` and the row is active, but the GUI rendering is unverified.
 
 ## Reuse survey evidence
 
@@ -43,7 +43,7 @@ Plan/Design approved by the user on 2026-11-15. After the user rejected the thre
 ## Remote and deployment boundary
 
 - `origin` is `https://github.com/careandmiss/zotero-local-reader.git`; the user explicitly authorized normal pushes on 2026-11-15. Tested commit `1dd2632` was pushed to `main`; no force-push was used.
-- Git push authorization alone did not authorize profile changes; the user separately authorized local DSH installation in goal round 1. The previously applied three-pane bundle remains installed and active; the screenshot-approved two-pane/full-width-reader source has not yet been installed. DSH restart is required after updating the bundle; do not claim the new UI is live until user validation.
+- Git push authorization alone did not authorize profile changes; the user separately authorized local DSH installation in goal round 1 and confirmed remove/reinstall of the existing local bundle for this update. `plugin_manager.remove_bundle` and `install_bundle` both returned `application=applied`; `list_plugins` shows `include:zotero-local-reader` enabled/active. No authenticated GUI rendering has been verified; ask the user to refresh/restart the existing DSH page and validate. The install reported existing peer-dependency warnings and an unrelated `mcp-minimax-search` startup warning.
 
 ## Verification boundary
 
