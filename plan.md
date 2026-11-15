@@ -97,29 +97,40 @@
 
 当前 F0–F3 共享 Host/Client API 合同，先由一个实现者串行完成。API 稳定后可由独立 `ui-reviewer` 检查 Client 体验、`security-reviewer` 检查 SQLite/文件路由，均只读并提交带行号证据的报告。
 
-## UI 对齐扩展提案（待用户批准）
+## UI 对齐扩展（用户已批准）
 
-### 背景与现状
+### 用户确认与现状
 
-当前 Client 只注册为 DSH 右侧栏阅读器，窄面板内列表与详情分步显示；用户提出希望页面更贴近 Zotero 文库的展示并补足功能。已核对当前 DSH 0.2.2-rc.3 文档：存在 root-scoped `main` 主面板与 `sidebar.panellist` 导航扩展点，因此全宽工作台是可行候选；当前会话没有实时 slot inspection，运行时导航挂载仍需实测。
+用户于 2026-11-15 15:23 (+08:00) 选择 A：全宽三栏工作台，并保留现有右侧栏快速阅读入口。当前 Client 只注册为右侧栏阅读器，列表与详情分步显示。已核对运行版本 DSH 0.2.2-rc.3 的包文档/源码：`main` 是 root-scoped keyed slot，`sidebar.panellist` 将面板入口连接至同 key；有可复用的主面板注册模式。当前没有 `cordis_inspect_query` 实时 slot 证据，运行时导航仍需在既有 DSH 页面手动验收。
 
-### 推荐方案（待用户选择）
+### 批准范围
 
-新增一个从 DSH 左侧导航打开的全宽 Zotero 文库工作台，保留现有右侧栏作为快速阅读入口。工作台采用三栏：
+新增从 DSH 左侧导航打开的全宽 Zotero 文库工作台，保留现有右侧栏快速阅读入口。工作台采用三栏：
 
 1. **左栏**：可折叠集合树、集合计数与集合过滤。
-2. **中栏**：搜索框、可排序分页列表；默认列为标题、作者、年份/日期、类型与本地 PDF 指示；搜索继续覆盖标题/作者/摘要。
+2. **中栏**：搜索框、可排序分页列表；列显示标题、作者、年份/日期、类型与本地 PDF 指示；搜索覆盖标题/作者/摘要。排序只接受服务端枚举白名单（最近添加、标题、日期、作者），稳定 tie-break；默认沿用最近添加顺序。
 3. **右栏**：条目详情（摘要、DOI、期刊、标签、集合、附件列表）及所选 PDF 阅读器；窄窗口退化为集合抽屉与列表/详情单栏导航。
 
-复用现有只读 SQLite 与同源 HTTP API，不新增 Zotero 写操作、Web API、云同步或外部附件访问；继续保留 storage 路径约束、只读连接、分页上限与合成数据测试。当前真实文库 `dataDir` 错误需先用合成 fixture 隔离，不能通过读取真实数据库排查。
+复用现有只读 SQLite 与同源 HTTP API，不新增 Zotero 写操作、Web API、云同步或外部附件访问；保留 storage 路径约束、只读连接、分页上限与同源检查。真实文库 `dataDir` 错误仍独立待诊断；只用合成 fixture，绝不读取真实数据库排障。
+
+### 实施顺序与文件范围
+
+1. 先在 `tests/library.test.js` 与 `tests/http.test.js` 添加排序、非法 sort、参数注入拒绝的合成回归测试。
+2. 在 `src/zotero-db.js` 增加排序白名单与稳定排序；在 `src/http.js` 校验并传递 `sort`/`direction`，不拼接未受信任 SQL。
+3. 在 `client.js` 为既有 Panel 增加 wide 模式：注册 `main` keyed panel 与 `sidebar.panellist` 图标；复用现有健康检查、详情/PDF 流程，显示集合树、列表列与三栏详情；保留 `sidebar.right.pane.tab` 的 compact 模式。
+4. 更新 `README.md`、`BUILD_NOTE.md`、`docs/UI_DIRECTION.md`、`implement-stage/BUILD_NOTE.md` 与 handoff 记录已实现/未验证状态。
+5. 安装已测试 bundle 到当前 DSH desktop profile；不启动替代服务器，不绕过认证。用户在现有 GUI 刷新后用 synthetic fixture 验收主面板、集合/搜索/排序/分页/详情/PDF。
 
 ### 验收口径
 
-- DSH 左侧导航可打开工作台并回到 Conversation；右侧栏快速入口仍可用（若用户选择保留）。
-- 仅 synthetic fixture 验证集合树、搜索、排序、分页、详情、附件与 PDF 阅读器；不展示或记录真实论文内容。
-- 响应式布局在窄/宽窗口可用，主题沿用 DSH tokens，键盘与 ARIA 基础操作可达。
-- 全量测试、语法、bundle 检查通过；UI 需在现有认证 DSH 界面实际验收，不能用 mock 页面代替。
+- 左侧导航能打开工作台，标题与入口本地化，返回按钮能切回 Conversation；原右侧栏入口仍可用。
+- 合成用例覆盖集合过滤、搜索、排序（含稳定 tie-break）、分页、详情、附件与 PDF；非法排序参数拒绝，已有 GET-only/loopback/source/path containment 安全回归不退化。
+- 宽窗口三栏可见；中/窄窗口不产生横向溢出，集合导航及条目详情仍可达；使用 DSH theme tokens、语义按钮/标签、键盘可操作。
+- `node --test tests/*.test.js`、四个 `node --check`、`node scripts/check-bundle.mjs`、`git diff --check` 全部通过；只有现有认证 DSH GUI 的实际操作可作为 UI 验收，静态检查/mock 不替代。
 
-### 待用户决策
+### 安全、回退与当前状态
 
-选择：A) 推荐的全宽三栏工作台并保留右侧栏快速入口；B) 仅在当前右侧栏做紧凑优化（不实现真正三栏）；或 C) 先提供静态设计稿再定。未确认布局范围前不修改 Client UI 代码。
+- 不新增依赖，不改 profile 配置，不写真实 Zotero 数据；sort 参数必须经 enum 映射后才进入 SQL。
+- 若新的 panel 注册或布局失败，保留原 compact 右侧栏并回退本次 UI 变更；回退仅限插件仓库 bundle，不触碰 DSH profile 之外的数据。
+- **状态**：进行中；用户已批准范围，代码尚未开始。
+- **不卡死计数**：当前 UI 扩展实施失败 0 次；若同一步连续失败 2 次，先回需求/设计复判。
