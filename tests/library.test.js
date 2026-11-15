@@ -57,6 +57,7 @@ test('item details include abstract, citation metadata, tags, collections, and a
   assert.deepEqual(item.tags, ['Synthetic'])
   assert.equal(item.collections.some((collection) => collection.key === 'COLL0002'), true)
   assert.equal(item.hasPdfAttachment, true)
+  assert.deepEqual(item.pdfAttachments.map((attachment) => attachment.key), ['ATTACH02', 'ATTACH01'])
   assert.equal(getItemDetails(library.config, 'PAPER009'), null)
   assert.throws(() => getItemDetails(library.config, '../PAPER'), (error) => error instanceof ZoteroReadError && error.code === 'bad_request')
 })
@@ -66,7 +67,7 @@ test('a subsequent query sees a new committed local item without restarting the 
   assert.equal(listItems(library.config).total, 2)
   const writer = new DatabaseSync(library.dbPath)
   try {
-    writer.exec("INSERT INTO items (itemID, key, itemTypeID, dateAdded) VALUES (4, 'PAPER003', 2, '2026-01-01 00:00:00')")
+    writer.exec("INSERT INTO items (itemID, key, itemTypeID, dateAdded) VALUES (5, 'PAPER003', 2, '2026-01-01 00:00:00')")
     writer.exec("INSERT INTO itemDataValues (valueID, value) VALUES (10, 'Fresh synthetic title')")
     writer.exec('INSERT INTO itemData (itemID, fieldID, valueID) VALUES (4, 1, 10)')
   } finally {

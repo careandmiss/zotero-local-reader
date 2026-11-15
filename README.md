@@ -4,7 +4,7 @@ A DSH right-sidebar plugin for browsing the local Zotero library and reading loc
 
 ## Status
 
-F0–F2 are implemented: the bundle registers a DSH right-sidebar tab, reads a local collection tree, supports literal title/author/abstract search, paginates results, and opens item metadata/details through read-only SQLite queries. F3 local PDF streaming/reading remains in the approved plan. See [`plan.md`](plan.md), [`spec.md`](spec.md), and [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
+F0–F3 are implemented: the bundle registers a DSH right-sidebar tab, reads a local collection tree, supports literal title/author/abstract search, paginates results, opens item details, and streams Zotero-managed PDFs inline with byte-range support. All database access is read-only. Live native-viewer rendering remains unverified until profile installation. See [`plan.md`](plan.md), [`spec.md`](spec.md), and [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
 
 ## Privacy
 

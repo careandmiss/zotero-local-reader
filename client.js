@@ -34,7 +34,12 @@ window.__ModuleLoader__.load({
         'item.noAbstract': 'Zotero 条目没有摘要。',
         'item.noPdf': '条目没有记录本地 PDF',
         'item.pdfAttached': '条目记录关联了 Zotero 存储中的 PDF',
-        'item.pdfNext': 'PDF 阅读区将在下一阶段加入。',
+        'item.pdfHeading': '本地 PDF',
+        'item.pdfSelect': '选择 PDF 附件',
+        'item.pdfLabel': 'PDF 附件',
+        'item.pdfChecking': '正在检查附件…',
+        'item.pdfMissing': '本地 PDF 文件缺失或不在 Zotero 存储目录中。',
+        'item.pdfViewerTitle': '本地 PDF 阅读器',
         'item.countSuffix': '篇',
         'item.detail': '文献详情',
         'item.abstract': '摘要',
@@ -74,7 +79,12 @@ window.__ModuleLoader__.load({
         'item.noAbstract': 'This Zotero item has no abstract.',
         'item.noPdf': 'No local PDF is recorded for this item',
         'item.pdfAttached': 'A PDF attachment is recorded in Zotero storage',
-        'item.pdfNext': 'The PDF reader arrives in the next build stage.',
+        'item.pdfHeading': 'Local PDF',
+        'item.pdfSelect': 'Choose a PDF attachment',
+        'item.pdfLabel': 'PDF attachment',
+        'item.pdfChecking': 'Checking attachment…',
+        'item.pdfMissing': 'The local PDF is missing or outside Zotero storage.',
+        'item.pdfViewerTitle': 'Local PDF reader',
         'item.countSuffix': 'items',
         'item.detail': 'Item details',
         'item.abstract': 'Abstract',
@@ -138,6 +148,35 @@ window.__ModuleLoader__.load({
       const [detailLoading, setDetailLoading] = useState(false)
       const [detailError, setDetailError] = useState(false)
       const detailAbort = useRef(null)
+      const pdfAbort = useRef(null)
+      const [selectedPdfKey, setSelectedPdfKey] = useState('')
+      const [pdfStatus, setPdfStatus] = useState('idle')
+
+      const verifyPdf = useCallback(async (itemKey, attachmentKey) => {
+        pdfAbort.current?.abort()
+        if (!itemKey || !attachmentKey) {
+          setSelectedPdfKey('')
+          setPdfStatus('idle')
+          return
+        }
+        const controller = new AbortController()
+        pdfAbort.current = controller
+        setSelectedPdfKey(attachmentKey)
+        setPdfStatus('checking')
+        try {
+          const response = await fetch(`${API}/file/${encodeURIComponent(itemKey)}/${encodeURIComponent(attachmentKey)}`, {
+            cache: 'no-store',
+            headers: { range: 'bytes=0-0' },
+            signal: controller.signal,
+          })
+          await response.body?.cancel().catch(() => {})
+          if (controller.signal.aborted) return
+          if (response.status === 206 && response.headers.get('content-type') === 'application/pdf') setPdfStatus('ready')
+          else setPdfStatus('missing')
+        } catch (error) {
+          if (error?.name !== 'AbortError') setPdfStatus('missing')
+        }
+      }, [])
 
       const fetchItems = useCallback(async (currentQuery, currentCollection, options = {}) => {
         const { signal, offset = 0, append = false } = options
@@ -207,6 +246,7 @@ window.__ModuleLoader__.load({
           controller.abort()
           clearInterval(timer)
           detailAbort.current?.abort()
+          pdfAbort.current?.abort()
         }
       }, [refresh])
 
@@ -233,17 +273,22 @@ window.__ModuleLoader__.load({
           const result = await response.json()
           if (!result.ok) throw new Error(result.error?.message ?? 'Item details are unavailable.')
           setDetails(result.data)
+          const firstPdf = result.data.pdfAttachments?.[0]?.key ?? ''
+          void verifyPdf(item.key, firstPdf)
         } catch (error) {
           if (error?.name !== 'AbortError') setDetailError(true)
         } finally {
           if (!controller.signal.aborted) setDetailLoading(false)
         }
-      }, [])
+      }, [verifyPdf])
 
       const closeItem = useCallback(() => {
         detailAbort.current?.abort()
+        pdfAbort.current?.abort()
         setSelectedItem(null)
         setDetails(null)
+        setSelectedPdfKey('')
+        setPdfStatus('idle')
         setDetailError(false)
       }, [])
 
@@ -355,7 +400,31 @@ window.__ModuleLoader__.load({
             h('h3', { style: { margin: '0 0 5px', fontSize: 11, fontWeight: 650, color: 'var(--dsw-alias-label-secondary, GrayText)' } }, t('item.collections')),
             h('div', { style: { color: 'var(--dsw-alias-label-tertiary, GrayText)', fontSize: 11, lineHeight: 1.5 } }, details.collections.map((collection) => collection.name).join(' · ')),
           ) : null,
-          h('div', { style: { padding: 10, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(128,128,128,.1))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 11, lineHeight: 1.5 } }, details.hasPdfAttachment ? `${t('item.pdfAttached')} · ${t('item.pdfNext')}` : t('item.noPdf')),
+          h('section', { style: { display: 'flex', flexDirection: 'column', gap: 7 } },
+            h('h3', { style: { margin: '0 0 2px', fontSize: 11, fontWeight: 650, color: 'var(--dsw-alias-label-secondary, GrayText)' } }, t('item.pdfHeading')),
+            details.pdfAttachments?.length ? h(React.Fragment, null,
+              details.pdfAttachments.length > 1 ? h('label', { style: { display: 'flex', flexDirection: 'column', gap: 5, fontSize: 11, color: 'var(--dsw-alias-label-secondary, GrayText)' } },
+                t('item.pdfSelect'),
+                h('select', {
+                  value: selectedPdfKey,
+                  onChange: (event) => void verifyPdf(details.key, event.target.value),
+                  'aria-label': t('item.pdfSelect'),
+                  style: fieldStyle,
+                }, details.pdfAttachments.map((attachment, index) => h('option', { key: attachment.key, value: attachment.key }, `${t('item.pdfLabel')} ${index + 1}${attachment.dateAdded ? ` · ${attachment.dateAdded.slice(0, 10)}` : ''}`))),
+              ) : null,
+              pdfStatus === 'checking' ? h('div', { role: 'status', style: { color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 11 } }, t('item.pdfChecking')) : null,
+              pdfStatus === 'missing' ? h('div', { role: 'alert', style: { color: 'var(--dsw-alias-state-warn-primary, #b26a00)', fontSize: 11, lineHeight: 1.5 } }, t('item.pdfMissing')) : null,
+              pdfStatus === 'ready' && selectedPdfKey ? h('iframe', {
+                key: `${details.key}-${selectedPdfKey}`,
+                src: `${API}/file/${encodeURIComponent(details.key)}/${encodeURIComponent(selectedPdfKey)}`,
+                title: t('item.pdfViewerTitle'),
+                loading: 'lazy',
+                referrerPolicy: 'no-referrer',
+                onError: () => setPdfStatus('missing'),
+                style: { display: 'block', width: '100%', height: '58vh', minHeight: 360, border: '1px solid var(--dsw-alias-border-l3, rgba(128,128,128,.35))', borderRadius: 8, background: 'var(--dsw-alias-bg-layer-1, transparent)' },
+              }) : null,
+            ) : h('div', { style: { padding: 10, borderRadius: 8, background: 'var(--dsw-alias-bg-layer-2, rgba(128,128,128,.1))', color: 'var(--dsw-alias-label-secondary, GrayText)', fontSize: 11, lineHeight: 1.5 } }, details.hasPdfAttachment ? t('item.pdfMissing') : t('item.noPdf')),
+          ),
         ) : null,
       )
 

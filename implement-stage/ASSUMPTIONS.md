@@ -10,7 +10,7 @@
 | A-005 | “Real time” has no latency/cache definition | Query current SQLite state on each list/search/detail request; refresh the open panel every 15 seconds plus manual refresh | semantic | default |
 | A-006 | User's Zotero data directory may be customized | Configured directory, then `ZOTERO_DB_PATH`, `ZOTERO_DATA_DIR`, then `~/Zotero`; no full-disk scan | interface | default |
 | A-007 | Earlier conversation mentioned login, but latest goal specifies the local library | No Zotero account/API credential; inherit DSH session access control | semantic | user |
-| A-008 | PDF preview implementation is not specified for the DSH Electron renderer | Same-origin inline PDF endpoint and native Chromium viewer first; if runtime lacks PDF rendering, use bundled PDF.js | interface | default |
+| A-008 | PDF preview implementation is not specified for the DSH Electron renderer | Same-origin inline PDF endpoint in a native Chromium iframe; PDF.js fallback is deferred until live installation demonstrates the native viewer is unavailable | interface | default |
 | A-009 | Zotero can be syncing/indexing or use schema revisions | Bounded read-only connection; return actionable busy/unsupported-schema errors, never bypass the lock with writes | interface | default |
 | A-010 | The request does not define compact list versus full item payloads | Search/list returns title, authors, date, key and attachment-presence metadata; abstract/DOI/tags are returned by item detail | interface | default |
 | A-011 | The request does not define how text search treats punctuation or wildcard characters | Literal substring matching across title, creator names, and abstract; `%`, `_`, and `!` are escaped, and PDF full-text search is out of scope | semantic | default |
@@ -18,6 +18,8 @@
 | A-013 | The request does not specify default ordering of the first page | Most recently added items first (`dateAdded DESC`, then `itemID DESC`) | semantic | default |
 | A-014 | The request does not define whether a parent collection includes items in descendants | Filtering matches direct Zotero collection membership only; selecting a parent does not implicitly include child collections | semantic | default |
 | A-015 | The request does not specify whether multiple collections may be selected | One collection at a time via a single-select filter | interface | default |
+| A-016 | One Zotero item may have several local PDF attachments | Expose all Zotero-managed PDF attachment keys in item detail, ordered by newest attachment date first; let the user choose which to open | semantic | default |
+| A-017 | The browser may request only part of a PDF, and multi-range behavior is unspecified | Support one byte range per request; reject malformed and multi-range requests with 416 | interface | default |
 
 ## Notes
 

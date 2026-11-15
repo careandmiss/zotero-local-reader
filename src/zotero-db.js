@@ -1,7 +1,7 @@
 import { existsSync, statSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { homedir } from 'node:os'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 const REQUIRED_TABLES = [
   'items', 'itemTypes', 'deletedItems', 'fields', 'itemData', 'itemDataValues',
@@ -309,11 +309,15 @@ export function getItemDetails(config = {}, key) {
       FROM collectionItems ci JOIN collections c ON c.collectionID = ci.collectionID
       WHERE ci.itemID = ? ORDER BY c.collectionName COLLATE NOCASE
     `).all(row.itemID)
-    const hasPdfAttachment = Boolean(db.prepare(`
-      SELECT 1 FROM itemAttachments a
+    const pdfAttachments = db.prepare(`
+      SELECT ai.key AS key, ai.dateAdded AS dateAdded
+      FROM itemAttachments a JOIN items ai ON ai.itemID = a.itemID
       WHERE a.parentItemID = ? AND a.contentType = 'application/pdf' AND a.path LIKE 'storage:%'
-      LIMIT 1
-    `).get(row.itemID))
+      ORDER BY ai.dateAdded DESC, ai.itemID DESC
+    `).all(row.itemID)
+      .filter((attachment) => /^[A-Za-z0-9]{8}$/u.test(attachment.key))
+      .map((attachment) => ({ key: attachment.key, dateAdded: attachment.dateAdded ?? '' }))
+    const hasPdfAttachment = pdfAttachments.length > 0
     return {
       key: row.key,
       title: row.title,
@@ -327,6 +331,30 @@ export function getItemDetails(config = {}, key) {
       tags,
       collections,
       hasPdfAttachment,
+      pdfAttachments,
     }
+  })
+}
+
+export function findPdfForItem(config = {}, parentKey, attachmentKey) {
+  validateItemKey(parentKey)
+  validateItemKey(attachmentKey)
+  return withReadOnlyDatabase(config, (db, location) => {
+    const row = db.prepare(`
+      SELECT ai.key AS attachmentKey, a.path AS attachmentPath
+      FROM items parent
+      JOIN itemAttachments a ON a.parentItemID = parent.itemID
+      JOIN items ai ON ai.itemID = a.itemID
+      WHERE parent.key = ? AND ai.key = ? AND a.contentType = 'application/pdf'
+      LIMIT 1
+    `).get(parentKey, attachmentKey)
+    if (!row || typeof row.attachmentPath !== 'string' || !row.attachmentPath.startsWith('storage:')) return null
+    const filename = row.attachmentPath.slice('storage:'.length)
+    if (!filename || filename === '.' || filename === '..' || /[\\/\0:]/u.test(filename) || extname(filename).toLowerCase() !== '.pdf') return null
+    const storageRoot = resolve(location.dataDir, 'storage')
+    const filePath = resolve(storageRoot, row.attachmentKey, filename)
+    const relativePath = relative(storageRoot, filePath)
+    if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) return null
+    return { storageRoot, filePath }
   })
 }

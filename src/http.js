@@ -1,4 +1,8 @@
+import { createReadStream } from 'node:fs'
+import { realpath, stat } from 'node:fs/promises'
+import { extname, isAbsolute, relative, sep } from 'node:path'
 import {
+  findPdfForItem,
   getItemDetails,
   getLibraryHealth,
   listCollections,
@@ -75,7 +79,7 @@ function parseIntegerParameter(value, fallback, min, max, label) {
 
 function errorStatus(code) {
   if (code === 'bad_request') return 400
-  if (code === 'database_missing') return 404
+  if (code === 'database_missing' || code === 'pdf_not_found' || code === 'pdf_missing') return 404
   if (code === 'database_busy') return 503
   if (code === 'schema_unsupported' || code === 'database_invalid') return 409
   return 500
@@ -85,6 +89,99 @@ function reportOperationError(res, error, fallback) {
   const code = error?.code ?? 'database_unavailable'
   const message = error instanceof ZoteroReadError ? error.message : fallback
   sendError(res, errorStatus(code), code, message)
+}
+
+function parseRange(header, size) {
+  if (header === undefined) return null
+  if (typeof header !== 'string' || size <= 0 || header.includes(',')) return { invalid: true }
+  const match = /^bytes=(\d*)-(\d*)$/u.exec(header.trim())
+  if (!match || (!match[1] && !match[2])) return { invalid: true }
+  let start
+  let end
+  if (!match[1]) {
+    const suffix = Number(match[2])
+    if (!Number.isSafeInteger(suffix) || suffix <= 0) return { invalid: true }
+    start = Math.max(0, size - suffix)
+    end = size - 1
+  } else {
+    start = Number(match[1])
+    end = match[2] ? Number(match[2]) : size - 1
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= size) return { invalid: true }
+    end = Math.min(end, size - 1)
+  }
+  return { start, end }
+}
+
+function isContained(root, file) {
+  const pathFromRoot = relative(root, file)
+  return pathFromRoot !== '' && pathFromRoot !== '..' && !pathFromRoot.startsWith(`..${sep}`) && !isAbsolute(pathFromRoot)
+}
+
+async function servePdf(req, res, config, parentKey, attachmentKey) {
+  let resolved
+  try {
+    resolved = findPdfForItem(config, parentKey, attachmentKey)
+  } catch (error) {
+    reportOperationError(res, error, 'Could not resolve this local Zotero PDF.')
+    return
+  }
+  if (!resolved) {
+    sendError(res, 404, 'pdf_not_found', 'No Zotero-managed PDF attachment was found for this item.')
+    return
+  }
+
+  let root
+  let file
+  let info
+  try {
+    root = await realpath(resolved.storageRoot)
+    file = await realpath(resolved.filePath)
+    info = await stat(file)
+  } catch {
+    sendError(res, 404, 'pdf_missing', 'The PDF attachment is missing from local Zotero storage.')
+    return
+  }
+  if (!info.isFile() || extname(file).toLowerCase() !== '.pdf' || !isContained(root, file)) {
+    sendError(res, 403, 'pdf_path_rejected', 'The attachment is outside the supported Zotero storage area.')
+    return
+  }
+  if (info.size === 0) {
+    sendError(res, 422, 'pdf_empty', 'The local PDF attachment is empty.')
+    return
+  }
+
+  const range = parseRange(req.headers.range, info.size)
+  if (range?.invalid) {
+    res.writeHead(416, {
+      'content-range': `bytes */${info.size}`,
+      'accept-ranges': 'bytes',
+      'cache-control': 'no-store',
+      'cross-origin-resource-policy': 'same-origin',
+      'x-content-type-options': 'nosniff',
+    })
+    res.end()
+    return
+  }
+
+  const start = range?.start ?? 0
+  const end = range?.end ?? info.size - 1
+  const headers = {
+    'content-type': 'application/pdf',
+    'content-length': end - start + 1,
+    'accept-ranges': 'bytes',
+    'cache-control': 'no-store',
+    'content-disposition': 'inline; filename="zotero-paper.pdf"',
+    'cross-origin-resource-policy': 'same-origin',
+    'x-content-type-options': 'nosniff',
+  }
+  if (range) headers['content-range'] = `bytes ${start}-${end}/${info.size}`
+  res.writeHead(range ? 206 : 200, headers)
+  const stream = createReadStream(file, { start, end })
+  stream.on('error', () => {
+    if (res.headersSent) res.destroy()
+    else sendError(res, 500, 'pdf_read_failed', 'Could not read the local PDF attachment.')
+  })
+  stream.pipe(res)
 }
 
 export function createHandler({ getConfig }) {
@@ -155,6 +252,25 @@ export function createHandler({ getConfig }) {
       } catch (error) {
         reportOperationError(res, error, 'Could not read the Zotero item.')
       }
+      return
+    }
+
+    if (route.startsWith('/file/')) {
+      const segments = route.slice('/file/'.length).split('/')
+      if (segments.length !== 2 || segments.some((segment) => segment.length === 0)) {
+        sendError(res, 400, 'bad_request', 'A parent item key and attachment key are required.')
+        return
+      }
+      let parentKey
+      let attachmentKey
+      try {
+        parentKey = decodeURIComponent(segments[0])
+        attachmentKey = decodeURIComponent(segments[1])
+      } catch {
+        sendError(res, 400, 'bad_request', 'Invalid Zotero item or attachment key.')
+        return
+      }
+      await servePdf(req, res, config, parentKey, attachmentKey)
       return
     }
 

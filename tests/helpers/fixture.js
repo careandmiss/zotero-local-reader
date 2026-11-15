@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -33,7 +33,8 @@ export function makeLibrary(t, { name = 'zotero-reader-fixture-' } = {}) {
     INSERT INTO items (itemID, key, itemTypeID, dateAdded) VALUES
       (1, 'PAPER001', 2, '2025-01-01 00:00:00'),
       (2, 'ATTACH01', 3, '2025-01-01 00:00:01'),
-      (3, 'PAPER002', 2, '2024-01-01 00:00:00');
+      (3, 'PAPER002', 2, '2024-01-01 00:00:00'),
+      (4, 'ATTACH02', 3, '2026-01-01 00:00:00');
     INSERT INTO collectionItems (collectionID, itemID) VALUES (1, 1), (2, 1), (1, 3);
     INSERT INTO itemDataValues (valueID, value) VALUES
       (1, 'Synthetic article title'), (2, '2025'), (3, 'Synthetic abstract only; no real paper content.'),
@@ -46,10 +47,20 @@ export function makeLibrary(t, { name = 'zotero-reader-fixture-' } = {}) {
     INSERT INTO itemCreators (itemID, creatorID, creatorTypeID, orderIndex) VALUES (1, 1, 1, 0), (3, 2, 1, 0);
     INSERT INTO tags (tagID, name) VALUES (1, 'Synthetic');
     INSERT INTO itemTags (itemID, tagID) VALUES (1, 1);
-    INSERT INTO itemAttachments (itemID, parentItemID, linkMode, contentType, path) VALUES (2, 1, 0, 'application/pdf', 'storage:synthetic.pdf');
+    INSERT INTO itemAttachments (itemID, parentItemID, linkMode, contentType, path) VALUES
+      (2, 1, 0, 'application/pdf', 'storage:synthetic.pdf'),
+      (4, 1, 0, 'application/pdf', 'storage:newer.pdf');
   `)
   db.close()
-  return { dataDir, dbPath, config: { dataDir } }
+  const storageDir = join(dataDir, 'storage', 'ATTACH01')
+  mkdirSync(storageDir, { recursive: true })
+  const pdfPath = join(storageDir, 'synthetic.pdf')
+  writeFileSync(pdfPath, Buffer.from('%PDF-1.4\nSynthetic fixture PDF; no real paper content.\n%%EOF\n'))
+  const secondStorageDir = join(dataDir, 'storage', 'ATTACH02')
+  mkdirSync(secondStorageDir, { recursive: true })
+  const secondPdfPath = join(secondStorageDir, 'newer.pdf')
+  writeFileSync(secondPdfPath, Buffer.from('%PDF-1.5\nAnother synthetic attachment.\n%%EOF\n'))
+  return { dataDir, dbPath, pdfPath, secondPdfPath, config: { dataDir } }
 }
 
 export function makeUnsupportedDatabase(t, { name = 'zotero-reader-invalid-' } = {}) {
