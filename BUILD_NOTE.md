@@ -6,7 +6,7 @@ Plan/Design approved by the user on 2026-11-15. Implementation is authorized; F0
 
 ## F0–F4 ladder
 
-- F0 Host `/health` + DSH right-sidebar tab — not started.
+- F0 Host `/health` + DSH right-sidebar tab — implemented; HTTP test (3/3), syntax and bundle checks pass. Runtime visual verification is pending installation.
 - F1 read-only SQLite + collections tree — not started.
 - F2 live item search/detail — not started.
 - F3 safe local PDF route + reader — not started.

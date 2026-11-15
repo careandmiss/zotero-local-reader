@@ -1,0 +1,41 @@
+{
+  "name": "@local/zotero-local-reader",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only local Zotero library reader for the DSH sidebar. Browse local items and PDFs without keeping Zotero Desktop open; no Zotero Web API credentials or cloud service are used.",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "src",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "docs",
+    "icon.svg",
+    "README.md"
+  ],
+  "engines": {
+    "dsh": ">=0.2.1-rc.3 <0.3.0-0",
+    "node": ">=22.5"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/schemastery": "^3.18.5"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  }
+}

@@ -1,9 +1,11 @@
-# DSH Zotero Local Reader
+# DSH Zotero local reader
 
-A proposed DSH right-sidebar plugin for browsing the local Zotero library and reading local PDF attachments without requiring the Zotero desktop app to remain open.
+A DSH right-sidebar plugin for browsing the local Zotero library and reading local PDF attachments without keeping Zotero Desktop open. It is a Host + Client plugin bundle, not just an MCP tool.
 
 ## Status
 
-Plan is drafted; implementation has not started. See [`plan.md`](plan.md), [`spec.md`](spec.md), and [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
+F0 is being built: plugin metadata, DSH sidebar registration, and a safe local database health endpoint. Collection browsing and PDF reading follow in the approved F1–F4 plan. See [`plan.md`](plan.md), [`spec.md`](spec.md), and [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
 
-The intended first version is read-only, local-only, and uses a configurable Zotero data directory. It does not use Zotero Web API credentials or modify Zotero data.
+## Privacy
+
+The design is local-only and read-only. It does not require a Zotero API key and does not upload library contents. Tests use synthetic fixtures; do not copy `zotero.sqlite`, attachments, PDFs, or metadata into this repository.

@@ -1,31 +1,20 @@
 # AGENTS.md — repository memory
 
-Keep this file under one page. Add a rule when the same mistake happens twice.
-
 ## Commands
 
-- Build: `make build` (must finish with "Build succeeded")
-- Test: `make test` (all green; never skip or delete a failing test)
-- Lint: `make lint` (zero warnings)
-- Itest: `make itest` (integration, needs docker)
+- Build/check bundle: `node scripts/check-bundle.mjs`
+- Test: `node --test tests/*.test.js`
+- Syntax: `node --check index.js && node --check client.js && node --check src/zotero-db.js && node --check src/http.js`
+- Do not install dependencies unless the plan is amended and the user approves the dependency/build-script risk.
 
-## Verifying your work
+## Verification
 
-Run build, test, and lint before reporting any task complete, and paste the output.
-If a test fails, fix the code, not the test.
-
-## Conventions
-
-<Language/framework conventions, formatting, naming.>
+Run bundle check, all tests, and syntax checks before reporting work complete. Keep tests synthetic; never log or commit real Zotero titles, abstracts, database files, storage directories, PDFs, or user credentials.
 
 ## Architecture
 
-<One-paragraph mental model: main modules and data flow.>
+The DSH Host plugin reads Zotero SQLite read-only and streams only Zotero-managed PDF attachments through a same-origin route. The DSH Client registers a right-sidebar tab and uses that route for library browsing and reading. It never calls Zotero Desktop's localhost API or a cloud API.
 
-## Things the agent gets wrong
+## Security
 
-<Each mistake, its fix, and how to check for it.>
-
-## Hooks
-
-<Deterministic hooks and what they enforce.>
+Use parameterized SQL, `readOnly` SQLite connections plus `query_only`, GET-only local routes, no CORS, loopback/source checks, key-based attachment lookup, realpath containment under Zotero `storage`, and bounded pagination. Never accept arbitrary filesystem paths from the Client.

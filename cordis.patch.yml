@@ -1,0 +1,5 @@
+- insert:
+    - id: zotero-local-reader
+      name: '@local/zotero-local-reader'
+      config:
+        dataDir: ''

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Zotero local reader",
+    "description": "Check local Zotero database status in the DSH sidebar. Local and read-only, with no Zotero Web API or cloud service. Library browsing and PDF reading are under implementation."
+  }
+}

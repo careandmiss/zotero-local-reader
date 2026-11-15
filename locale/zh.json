@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Zotero 本地阅读器",
+    "description": "在 DSH 右侧栏检查本机 Zotero 数据库连接；本地只读，不依赖 Zotero Web API 或云服务。文库浏览与 PDF 阅读正在实现中。"
+  }
+}
