@@ -96,3 +96,13 @@ Approved by the user on 2026-11-15 after comparing two screenshots and inspectin
 
 - Synthetic DB/HTTP tests cover tag enumeration/counts, collection scoping, exact tag filtering, invalid/overlong tag input, plus existing read-only and request-origin guarantees.
 - Client source review covers two-pane rendering, full-width mode transitions, return-state preservation, keyboard access, compact sidebar routing, and responsive behavior. Visual acceptance still requires the user in the existing authenticated GUI after restart.
+
+## Approved Reader Amendment — immersive full-page PDF
+
+Approved by the user on 2026-11-15 after clarifying that the PDF must occupy the entire page. This supersedes the reader chrome and Info/PDF tab requirements above while retaining the two-pane library, return-state behavior, read-only security, and sidebar quick preview.
+
+- In the registered DSH `main` panel, opening a PDF enters an immersive canvas that fills the plugin's entire main content area. The DSH-owned global navigation remains visible and is outside the plugin's control.
+- Hide the plugin header/status toolbar, item title/metadata, Info/PDF tabs, PDF heading, and other reader chrome while reading. Keep only a small, accessible floating “Back to library” control over the canvas.
+- The embedded Chromium PDF viewer is the only document surface; the plugin should close the DSH rightbar while entering immersive reading so it cannot reduce the page width. Returning to the library retains filters, pagination, sorting, and selection.
+- The right-sidebar metadata preview remains available as a separate entry. Its full-read action selects the main panel, closes the rightbar, and opens the same immersive PDF canvas.
+- Error/loading states may occupy the canvas when no readable PDF is available; the floating return action remains available. No new dependencies or real-library access are permitted.
