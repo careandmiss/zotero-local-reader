@@ -206,4 +206,4 @@
 4. 保留 loading/error/no-PDF、只读 DB、同源 GET、key-based attachment lookup、`storage/` containment；不安装 npm 包，只依赖当前 DSH profile 已提供的 `ui-sidebar-documentpreview` Client package。
 5. 更新 UX 文档并复审；重跑 27 项合成测试、四项 syntax、bundle、diff 检查；提交/推送后由用户在现有 GUI 验收主列表沉浸阅读，以及 Session-bound metadata preview → DSH 原生 PDF canvas 侧栏 tab → 宿主全屏同一 tab；确认 Zotero path 不显示。
 
-此修订已获用户确认并以设计提交 `3cf68a3` 记录。native PDF body slot 组合已在工作区实现；27 项合成测试、四项语法检查、bundle 与 diff 检查通过，API/UX 复审确认无剩余 blocker（source-only，未做 live GUI 验证）。先前 iframe resource-tab 版本已被取代且未部署；当前实现仍需提交/推送，之后须另获部署授权并由用户验收。
+此修订已获用户确认并以设计提交 `3cf68a3` 记录。native PDF body slot 组合已实现并于 `0566b06` 提交、推送；27 项合成测试、四项语法检查、bundle 与 diff 检查通过，API/UX 复审确认无剩余 blocker（source-only，未做 live GUI 验证）。先前 iframe resource-tab 版本已被取代且未部署；当前实现尚未应用到 active profile，部署需另获明确授权并由用户验收。
