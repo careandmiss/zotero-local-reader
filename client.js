@@ -10,7 +10,7 @@ window.__ModuleLoader__.load({
     const SAFE_PDF_ERROR_CODES = new Set([
       'bad_request', 'database_busy', 'database_invalid', 'database_missing', 'database_unavailable',
       'item_not_found', 'pdf_empty', 'pdf_missing', 'pdf_not_found', 'pdf_path_rejected', 'pdf_read_failed',
-      'schema_unsupported', 'untrusted_request',
+      'schema_unsupported', 'stream_unavailable', 'untrusted_request',
     ])
     function safePdfDiagnosticCode(errorCode, status) {
       if (typeof errorCode === 'string' && SAFE_PDF_ERROR_CODES.has(errorCode)) return errorCode
@@ -18,6 +18,43 @@ window.__ModuleLoader__.load({
     }
     const READER_TAB_ID = 'zotero-local-reader-item'
     const READER_RESOURCE_PREFIX = `dsh-resource://${READER_TAB_ID}/`
+    // Stream into one capped buffer; avoid retaining chunks plus a final full-size copy.
+    async function readPdfResponseBounded(body, maxBytes) {
+      const reader = body?.getReader?.()
+      if (!reader) return { kind: 'unavailable' }
+      let buffer = new Uint8Array(0)
+      let byteLength = 0
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunkLength = value?.byteLength
+          if (!Number.isSafeInteger(chunkLength) || chunkLength < 0) throw new TypeError('Invalid PDF stream chunk.')
+          if (chunkLength === 0) continue
+          const nextLength = byteLength + chunkLength
+          if (nextLength > maxBytes) {
+            await reader.cancel().catch(() => {})
+            return { kind: 'tooLarge' }
+          }
+          if (nextLength > buffer.byteLength) {
+            const initialCapacity = Math.min(64 * 1024, maxBytes)
+            const capacity = Math.min(maxBytes, Math.max(nextLength, buffer.byteLength ? buffer.byteLength * 2 : initialCapacity))
+            const nextBuffer = new Uint8Array(capacity)
+            nextBuffer.set(buffer.subarray(0, byteLength))
+            buffer = nextBuffer
+          }
+          buffer.set(value, byteLength)
+          byteLength = nextLength
+        }
+      } catch (error) {
+        await reader.cancel().catch(() => {})
+        throw error
+      } finally {
+        reader.releaseLock()
+      }
+      const data = buffer.subarray(0, byteLength)
+      return byteLength === 0 ? { kind: 'empty', data } : { kind: 'ready', data }
+    }
     function itemKeyFromResourceAddress(address) {
       if (typeof address !== 'string' || !address.startsWith(READER_RESOURCE_PREFIX)) return null
       const encodedKey = address.slice(READER_RESOURCE_PREFIX.length)
@@ -383,27 +420,22 @@ window.__ModuleLoader__.load({
           const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase()
           if (response.status === 200 && contentType === 'application/pdf') {
             const length = Number(response.headers.get('content-length'))
-            if (!Number.isSafeInteger(length) || length < 1) {
-              await response.body?.cancel().catch(() => {})
-              if (!controller.signal.aborted) {
-                setPdfDiagnostic('invalid_content_length')
-                setPdfStatus('error')
-              }
-              return
-            }
-            if (length > MAX_NATIVE_PDF_BYTES) {
+            if (Number.isSafeInteger(length) && length > MAX_NATIVE_PDF_BYTES) {
               await response.body?.cancel().catch(() => {})
               if (!controller.signal.aborted) setPdfStatus('tooLarge')
               return
             }
-            const data = new Uint8Array(await response.arrayBuffer())
+            const readResult = await readPdfResponseBounded(response.body, MAX_NATIVE_PDF_BYTES)
             if (controller.signal.aborted) return
-            if (data.byteLength === 0) {
-              setPdfStatus('missing')
-            } else if (data.byteLength > MAX_NATIVE_PDF_BYTES) {
+            if (readResult.kind === 'unavailable') {
+              setPdfDiagnostic('stream_unavailable')
+              setPdfStatus('error')
+            } else if (readResult.kind === 'tooLarge') {
               setPdfStatus('tooLarge')
+            } else if (readResult.kind === 'empty') {
+              setPdfStatus('missing')
             } else {
-              setPdfData(data)
+              setPdfData(readResult.data)
               setPdfStatus('ready')
             }
             return
